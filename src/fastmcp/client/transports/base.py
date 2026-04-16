@@ -78,5 +78,4 @@ class ClientTransport(abc.ABC):
         return None
 
     def _set_auth(self, auth: httpx.Auth | Literal["oauth"] | str | None):
-        if auth is not None:
-            raise ValueError("This transport does not support auth")
+        pass

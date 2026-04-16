@@ -330,7 +330,7 @@ def _create_array_type(
 
 
 def _return_Any() -> Any:
-    return Any
+    pass
 
 
 def _object_schema_to_type(
@@ -500,9 +500,7 @@ def _get_default_value(
     2. Property's own default if it exists
     3. None
     """
-    if parent_default is not None and prop_name in parent_default:
-        return parent_default[prop_name]
-    return schema.get("default")
+    pass
 
 
 def _create_field_with_default(
@@ -511,12 +509,7 @@ def _create_field_with_default(
     schema: dict[str, Any],
 ) -> Any:
     """Create a field with simplified default handling."""
-    # Always use None as default for complex types
-    if isinstance(default_value, dict | list) or default_value is None:
-        return field(default=None)
-
-    # For simple types, use the value directly
-    return field(default=default_value)
+    pass
 
 
 def _create_pydantic_model(
@@ -671,9 +664,7 @@ def _create_dataclass(
     @model_validator(mode="before")
     @classmethod
     def _apply_defaults(cls, data: Mapping[str, Any]):
-        if isinstance(data, dict):
-            return _merge_defaults(data, original_schema)
-        return data
+        pass
 
     cls._apply_defaults = _apply_defaults  # type: ignore[attr-defined]  # ty:ignore[unresolved-attribute]
 

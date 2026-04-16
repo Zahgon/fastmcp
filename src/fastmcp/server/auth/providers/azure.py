@@ -288,24 +288,7 @@ class AzureProvider(OAuthProxy):
         Returns:
             Authorization URL to redirect the user to Azure AD
         """
-        # Clear the resource parameter that Azure AD v2.0 doesn't support
-        # This parameter comes from RFC 8707 (OAuth 2.0 Resource Indicators)
-        # but Azure AD v2.0 uses scopes instead to determine the audience
-        params_to_use = params
-        if hasattr(params, "resource"):
-            original_resource = getattr(params, "resource", None)
-            if original_resource is not None:
-                params_to_use = params.model_copy(update={"resource": None})
-                if original_resource:
-                    logger.debug(
-                        "Filtering out 'resource' parameter '%s' for Azure AD v2.0 (use scopes instead)",
-                        original_resource,
-                    )
-        # Don't modify the scopes in params - they stay unprefixed for MCP clients
-        # We'll prefix them when building the Azure authorization URL (in _build_upstream_authorize_url)
-        auth_url = await super().authorize(client, params_to_use)
-        separator = "&" if "?" in auth_url else "?"
-        return f"{auth_url}{separator}prompt=select_account"
+        pass
 
     def _prefix_scopes_for_azure(self, scopes: list[str]) -> list[str]:
         """Prefix unprefixed custom API scopes with identifier_uri for Azure.
@@ -328,19 +311,7 @@ class AzureProvider(OAuthProxy):
         Returns:
             List of scopes with identifier_uri prefix applied where needed
         """
-        prefixed = []
-        for scope in scopes:
-            if scope in OIDC_SCOPES:
-                # Standard OIDC scopes - never prefix
-                prefixed.append(scope)
-            elif "://" in scope or "/" in scope:
-                # Already fully-qualified (e.g., "api://xxx/read" or
-                # "https://graph.microsoft.com/User.Read")
-                prefixed.append(scope)
-            else:
-                # Unprefixed custom API scope - prefix with identifier_uri
-                prefixed.append(f"{self.identifier_uri}/{scope}")
-        return prefixed
+        pass
 
     def _build_upstream_authorize_url(
         self, txn_id: str, transaction: dict[str, Any]
@@ -350,22 +321,7 @@ class AzureProvider(OAuthProxy):
         Overrides parent to prefix scopes with identifier_uri before sending to Azure,
         while keeping unprefixed scopes in the transaction for MCP clients.
         """
-        # Get unprefixed scopes from transaction
-        unprefixed_scopes = transaction.get("scopes") or self.required_scopes or []
-
-        # Prefix scopes for Azure authorization request
-        prefixed_scopes = self._prefix_scopes_for_azure(unprefixed_scopes)
-
-        # Add Microsoft Graph scopes (not validated, not prefixed)
-        if self.additional_authorize_scopes:
-            prefixed_scopes.extend(self.additional_authorize_scopes)
-
-        # Temporarily modify transaction dict for parent's URL building
-        modified_transaction = transaction.copy()
-        modified_transaction["scopes"] = prefixed_scopes
-
-        # Let parent build the URL with prefixed scopes
-        return super()._build_upstream_authorize_url(txn_id, modified_transaction)
+        pass
 
     def _prepare_scopes_for_token_exchange(self, scopes: list[str]) -> list[str]:
         """Prepare scopes for Azure authorization code exchange.
@@ -380,18 +336,7 @@ class AzureProvider(OAuthProxy):
         Returns:
             List of scopes for Azure token endpoint
         """
-        # Prefix scopes for this API
-        prefixed_scopes = self._prefix_scopes_for_azure(scopes or [])
-
-        # Add OIDC scopes only (not other API scopes) to avoid AADSTS28000
-        if self.additional_authorize_scopes:
-            prefixed_scopes.extend(
-                s for s in self.additional_authorize_scopes if s in OIDC_SCOPES
-            )
-
-        deduplicated = list(dict.fromkeys(prefixed_scopes))
-        logger.debug("Token exchange scopes: %s", deduplicated)
-        return deduplicated
+        pass
 
     def _prepare_scopes_for_upstream_refresh(self, scopes: list[str]) -> list[str]:
         """Prepare scopes for Azure token refresh.
@@ -405,24 +350,7 @@ class AzureProvider(OAuthProxy):
         Returns:
             Deduplicated list of scopes formatted for Azure token endpoint
         """
-        logger.debug("Base scopes from storage: %s", scopes)
-
-        # Filter out any additional_authorize_scopes that may have been stored
-        additional_scopes_set = set(self.additional_authorize_scopes or [])
-        base_scopes = [s for s in scopes if s not in additional_scopes_set]
-
-        # Prefix base scopes with identifier_uri for Azure
-        prefixed_scopes = self._prefix_scopes_for_azure(base_scopes)
-
-        # Add OIDC scopes only (not other API scopes) to avoid AADSTS28000
-        if self.additional_authorize_scopes:
-            prefixed_scopes.extend(
-                s for s in self.additional_authorize_scopes if s in OIDC_SCOPES
-            )
-
-        deduplicated_scopes = list(dict.fromkeys(prefixed_scopes))
-        logger.debug("Scopes for Azure token endpoint: %s", deduplicated_scopes)
-        return deduplicated_scopes
+        pass
 
     async def _extract_upstream_claims(
         self, idp_tokens: dict[str, Any]
@@ -454,47 +382,7 @@ class AzureProvider(OAuthProxy):
         Returns:
             Dict of extracted claims, or None if extraction fails.
         """
-        access_token = idp_tokens.get("access_token")
-        if not access_token:
-            return None
-
-        try:
-            # Azure access tokens are JWTs - decode without verification
-            # (already validated by token_verifier during token exchange)
-            payload = decode_jwt_payload(access_token)
-
-            # Extract useful identity claims
-            claims: dict[str, Any] = {}
-            claim_keys = [
-                "sub",
-                "oid",
-                "tid",
-                "azp",
-                "name",
-                "given_name",
-                "family_name",
-                "preferred_username",
-                "upn",
-                "email",
-                "roles",
-                "groups",
-            ]
-            for claim in claim_keys:
-                if claim in payload:
-                    claims[claim] = payload[claim]
-
-            if claims:
-                logger.debug(
-                    "Extracted %d Azure claims for embedding in FastMCP JWT",
-                    len(claims),
-                )
-                return claims
-
-            return None
-
-        except Exception as e:
-            logger.debug("Failed to extract Azure claims: %s", e)
-            return None
+        pass
 
     async def get_obo_credential(self, user_assertion: str) -> OnBehalfOfCredential:
         """Get a cached or new OnBehalfOfCredential for OBO token exchange.
@@ -512,50 +400,11 @@ class AzureProvider(OAuthProxy):
         Raises:
             ImportError: If azure-identity is not installed (requires fastmcp[azure]).
         """
-        _require_azure_identity("OBO token exchange")
-        from azure.identity.aio import OnBehalfOfCredential
-
-        key = hashlib.sha256(user_assertion.encode()).hexdigest()
-
-        if key in self._obo_credentials:
-            self._obo_credentials.move_to_end(key)
-            return self._obo_credentials[key]
-
-        obo_kwargs: dict[str, Any] = {
-            "tenant_id": self._tenant_id,
-            "client_id": self._upstream_client_id,
-            "user_assertion": user_assertion,
-            "authority": f"https://{self._base_authority}",
-        }
-        if self._upstream_client_secret is not None:
-            obo_kwargs["client_secret"] = (
-                self._upstream_client_secret.get_secret_value()
-            )
-        else:
-            raise ValueError(
-                "OBO token exchange requires either a client_secret or a subclass "
-                "that overrides get_obo_credential() to provide alternative credentials "
-                "(e.g., client_assertion_func for managed identity)."
-            )
-        credential = OnBehalfOfCredential(**obo_kwargs)
-        self._obo_credentials[key] = credential
-
-        # Evict oldest if over capacity
-        while len(self._obo_credentials) > self._obo_max_credentials:
-            _, evicted = self._obo_credentials.popitem(last=False)
-            await evicted.close()
-
-        return credential
+        pass
 
     async def close_obo_credentials(self) -> None:
         """Close all cached OBO credentials."""
-        credentials = list(self._obo_credentials.values())
-        self._obo_credentials.clear()
-        for credential in credentials:
-            try:
-                await credential.close()
-            except Exception:
-                logger.debug("Error closing OBO credential", exc_info=True)
+        pass
 
 
 class AzureJWTVerifier(JWTVerifier):
@@ -647,15 +496,7 @@ class AzureJWTVerifier(JWTVerifier):
         property returns the full-URI form for OAuth metadata while
         ``required_scopes`` retains the short form for token validation.
         """
-        if not self.required_scopes:
-            return []
-        prefixed = []
-        for scope in self.required_scopes:
-            if scope in OIDC_SCOPES or "://" in scope or "/" in scope:
-                prefixed.append(scope)
-            else:
-                prefixed.append(f"{self._identifier_uri}/{scope}")
-        return prefixed
+        pass
 
 
 # --- Dependency injection support ---
@@ -664,13 +505,7 @@ class AzureJWTVerifier(JWTVerifier):
 
 def _require_azure_identity(feature: str) -> None:
     """Raise ImportError with install instructions if azure-identity is not available."""
-    try:
-        import azure.identity  # noqa: F401
-    except ImportError as e:
-        raise ImportError(
-            f"{feature} requires the `azure` extra. "
-            "Install with: pip install 'fastmcp[azure]'"
-        ) from e
+    pass
 
 
 def _find_azure_provider(auth: AuthProvider | None) -> AzureProvider | None:
@@ -765,4 +600,4 @@ def EntraOBOToken(scopes: list[str]) -> str:
         `additional_authorize_scopes` parameter, and that admin consent has been
         granted for those scopes in your Entra app registration.
     """
-    return cast(str, _EntraOBOToken(scopes))
+    pass

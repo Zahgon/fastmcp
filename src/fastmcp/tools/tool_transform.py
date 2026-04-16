@@ -700,38 +700,7 @@ class TransformedTool(Tool):
         # Create forwarding function that closes over everything it needs
         async def _forward(**kwargs: Any):
             # Validate arguments
-            valid_args = set(new_props.keys())
-            provided_args = set(kwargs.keys())
-            unknown_args = provided_args - valid_args
-
-            if unknown_args:
-                raise TypeError(
-                    f"Got unexpected keyword argument(s): {', '.join(sorted(unknown_args))}"
-                )
-
-            # Check required arguments
-            missing_args = new_required - provided_args
-            if missing_args:
-                raise TypeError(
-                    f"Missing required argument(s): {', '.join(sorted(missing_args))}"
-                )
-
-            # Map arguments to parent names
-            parent_args = {}
-            for new_name, value in kwargs.items():
-                old_name = new_to_old.get(new_name, new_name)
-                parent_args[old_name] = value
-
-            # Add hidden defaults (constant values for hidden parameters)
-            for old_name, transform in hidden_defaults.items():
-                if transform.default is not NotSet:
-                    parent_args[old_name] = transform.default
-                elif transform.default_factory is not NotSet:
-                    # Type check to ensure default_factory is callable
-                    if callable(transform.default_factory):
-                        parent_args[old_name] = transform.default_factory()
-
-            return await parent_tool.run(parent_args)
+            pass
 
         return schema, _forward
 
@@ -989,16 +958,4 @@ def apply_transformations_to_tools(
     Note: tools dict is keyed by prefixed key (e.g., "tool:my_tool"),
     but transformations are keyed by tool name (e.g., "my_tool").
     """
-
-    transformed_tools: dict[str, Tool] = {}
-
-    for tool_key, tool in tools.items():
-        # Look up transformation by tool name, not prefixed key
-        if transformation := transformations.get(tool.name):
-            transformed = transformation.apply(tool)
-            transformed_tools[transformed.key] = transformed
-            continue
-
-        transformed_tools[tool_key] = tool
-
-    return transformed_tools
+    pass

@@ -51,7 +51,7 @@ class CachableResourceResult(FastMCPBaseModel):
     meta: dict[str, Any] | None = None
 
     def get_size(self) -> int:
-        return len(self.model_dump_json())
+        pass
 
     @classmethod
     def wrap(cls, value: ResourceResult) -> Self:
@@ -118,7 +118,7 @@ class CachablePromptResult(FastMCPBaseModel):
     meta: dict[str, Any] | None = None
 
     def get_size(self) -> int:
-        return len(self.model_dump_json())
+        pass
 
     @classmethod
     def wrap(cls, value: PromptResult) -> Self:
@@ -295,36 +295,7 @@ class ResponseCachingMiddleware(Middleware):
     ) -> Sequence[Tool]:
         """List tools from the cache, if caching is enabled, and the result is in the cache. Otherwise,
         otherwise call the next middleware and store the result in the cache if caching is enabled."""
-        if self._list_tools_settings.get("enabled") is False:
-            return await call_next(context)
-
-        if cached_value := await self._list_tools_cache.get(key=GLOBAL_KEY):
-            return cached_value
-
-        tools: Sequence[Tool] = await call_next(context=context)
-
-        # Turn any subclass of Tool into a Tool
-        cachable_tools: list[Tool] = [
-            Tool(
-                name=tool.name,
-                title=tool.title,
-                description=tool.description,
-                parameters=tool.parameters,
-                output_schema=tool.output_schema,
-                annotations=tool.annotations,
-                meta=tool.meta,
-                tags=tool.tags,
-            )
-            for tool in tools
-        ]
-
-        await self._list_tools_cache.put(
-            key=GLOBAL_KEY,
-            value=cachable_tools,
-            ttl=self._list_tools_settings.get("ttl", FIVE_MINUTES_IN_SECONDS),
-        )
-
-        return cachable_tools
+        pass
 
     @override
     async def on_list_resources(
@@ -334,36 +305,7 @@ class ResponseCachingMiddleware(Middleware):
     ) -> Sequence[Resource]:
         """List resources from the cache, if caching is enabled, and the result is in the cache. Otherwise,
         otherwise call the next middleware and store the result in the cache if caching is enabled."""
-        if self._list_resources_settings.get("enabled") is False:
-            return await call_next(context)
-
-        if cached_value := await self._list_resources_cache.get(key=GLOBAL_KEY):
-            return cached_value
-
-        resources: Sequence[Resource] = await call_next(context=context)
-
-        # Turn any subclass of Resource into a Resource
-        cachable_resources: list[Resource] = [
-            Resource(
-                name=resource.name,
-                title=resource.title,
-                description=resource.description,
-                tags=resource.tags,
-                meta=resource.meta,
-                mime_type=resource.mime_type,
-                annotations=resource.annotations,
-                uri=resource.uri,
-            )
-            for resource in resources
-        ]
-
-        await self._list_resources_cache.put(
-            key=GLOBAL_KEY,
-            value=cachable_resources,
-            ttl=self._list_resources_settings.get("ttl", FIVE_MINUTES_IN_SECONDS),
-        )
-
-        return cachable_resources
+        pass
 
     @override
     async def on_list_prompts(
@@ -373,34 +315,7 @@ class ResponseCachingMiddleware(Middleware):
     ) -> Sequence[Prompt]:
         """List prompts from the cache, if caching is enabled, and the result is in the cache. Otherwise,
         otherwise call the next middleware and store the result in the cache if caching is enabled."""
-        if self._list_prompts_settings.get("enabled") is False:
-            return await call_next(context)
-
-        if cached_value := await self._list_prompts_cache.get(key=GLOBAL_KEY):
-            return cached_value
-
-        prompts: Sequence[Prompt] = await call_next(context=context)
-
-        # Turn any subclass of Prompt into a Prompt
-        cachable_prompts: list[Prompt] = [
-            Prompt(
-                name=prompt.name,
-                title=prompt.title,
-                description=prompt.description,
-                tags=prompt.tags,
-                meta=prompt.meta,
-                arguments=prompt.arguments,
-            )
-            for prompt in prompts
-        ]
-
-        await self._list_prompts_cache.put(
-            key=GLOBAL_KEY,
-            value=cachable_prompts,
-            ttl=self._list_prompts_settings.get("ttl", FIVE_MINUTES_IN_SECONDS),
-        )
-
-        return cachable_prompts
+        pass
 
     @override
     async def on_call_tool(
@@ -410,30 +325,7 @@ class ResponseCachingMiddleware(Middleware):
     ) -> ToolResult:
         """Call a tool from the cache, if caching is enabled, and the result is in the cache. Otherwise,
         otherwise call the next middleware and store the result in the cache if caching is enabled."""
-        tool_name = context.message.name
-
-        if self._call_tool_settings.get(
-            "enabled"
-        ) is False or not self._matches_tool_cache_settings(tool_name=tool_name):
-            return await call_next(context=context)
-
-        cache_key: str = _make_call_tool_cache_key(msg=context.message)
-
-        if cached_value := await self._call_tool_cache.get(key=cache_key):
-            return cached_value.unwrap()
-
-        tool_result: ToolResult = await call_next(context=context)
-        cachable_tool_result: CachableToolResult = CachableToolResult.wrap(
-            value=tool_result
-        )
-
-        await self._call_tool_cache.put(
-            key=cache_key,
-            value=cachable_tool_result,
-            ttl=self._call_tool_settings.get("ttl", ONE_HOUR_IN_SECONDS),
-        )
-
-        return cachable_tool_result.unwrap()
+        pass
 
     @override
     async def on_read_resource(
@@ -443,25 +335,7 @@ class ResponseCachingMiddleware(Middleware):
     ) -> ResourceResult:
         """Read a resource from the cache, if caching is enabled, and the result is in the cache. Otherwise,
         otherwise call the next middleware and store the result in the cache if caching is enabled."""
-        if self._read_resource_settings.get("enabled") is False:
-            return await call_next(context=context)
-
-        cache_key: str = _make_read_resource_cache_key(msg=context.message)
-        cached_value: CachableResourceResult | None
-
-        if cached_value := await self._read_resource_cache.get(key=cache_key):
-            return cached_value.unwrap()
-
-        value: ResourceResult = await call_next(context=context)
-        cached_value = CachableResourceResult.wrap(value)
-
-        await self._read_resource_cache.put(
-            key=cache_key,
-            value=cached_value,
-            ttl=self._read_resource_settings.get("ttl", ONE_HOUR_IN_SECONDS),
-        )
-
-        return cached_value.unwrap()
+        pass
 
     @override
     async def on_get_prompt(
@@ -471,37 +345,11 @@ class ResponseCachingMiddleware(Middleware):
     ) -> PromptResult:
         """Get a prompt from the cache, if caching is enabled, and the result is in the cache. Otherwise,
         otherwise call the next middleware and store the result in the cache if caching is enabled."""
-        if self._get_prompt_settings.get("enabled") is False:
-            return await call_next(context=context)
-
-        cache_key: str = _make_get_prompt_cache_key(msg=context.message)
-
-        if cached_value := await self._get_prompt_cache.get(key=cache_key):
-            return cached_value.unwrap()
-
-        value: PromptResult = await call_next(context=context)
-        cached_value = CachablePromptResult.wrap(value)
-
-        await self._get_prompt_cache.put(
-            key=cache_key,
-            value=cached_value,
-            ttl=self._get_prompt_settings.get("ttl", ONE_HOUR_IN_SECONDS),
-        )
-
-        return cached_value.unwrap()
+        pass
 
     def _matches_tool_cache_settings(self, tool_name: str) -> bool:
         """Check if the tool matches the cache settings for tool calls."""
-
-        if included_tools := self._call_tool_settings.get("included_tools"):
-            if tool_name not in included_tools:
-                return False
-
-        if excluded_tools := self._call_tool_settings.get("excluded_tools"):
-            if tool_name in excluded_tools:
-                return False
-
-        return True
+        pass
 
     def statistics(self) -> ResponseCachingStatistics:
         """Get the statistics for the cache."""

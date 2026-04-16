@@ -209,11 +209,7 @@ class LocalProvider(
         Raises:
             KeyError: If the component is not found.
         """
-        component = self._components.get(key)
-        if component is None:
-            raise KeyError(f"Component {key!r} not found")
-
-        del self._components[key]
+        pass
 
     def _get_component(self, key: str) -> FastMCPComponent | None:
         """Get a component by its prefixed key.
@@ -224,7 +220,7 @@ class LocalProvider(
         Returns:
             The component, or None if not found.
         """
-        return self._components.get(key)
+        pass
 
     def remove_tool(self, name: str, version: str | None = None) -> None:
         """Remove tool(s) from this provider's storage.
@@ -236,23 +232,7 @@ class LocalProvider(
         Raises:
             KeyError: If no matching tool is found.
         """
-        if version is None:
-            # Remove all versions
-            keys_to_remove = [
-                k
-                for k, c in self._components.items()
-                if isinstance(c, Tool) and c.name == name
-            ]
-            if not keys_to_remove:
-                raise KeyError(f"Tool {name!r} not found")
-            for key in keys_to_remove:
-                self._remove_component(key)
-        else:
-            # Remove specific version - key format is "tool:name@version"
-            key = f"{Tool.make_key(name)}@{version}"
-            if key not in self._components:
-                raise KeyError(f"Tool {name!r} version {version!r} not found")
-            self._remove_component(key)
+        pass
 
     def remove_resource(self, uri: str, version: str | None = None) -> None:
         """Remove resource(s) from this provider's storage.
@@ -264,23 +244,7 @@ class LocalProvider(
         Raises:
             KeyError: If no matching resource is found.
         """
-        if version is None:
-            # Remove all versions
-            keys_to_remove = [
-                k
-                for k, c in self._components.items()
-                if isinstance(c, Resource) and str(c.uri) == uri
-            ]
-            if not keys_to_remove:
-                raise KeyError(f"Resource {uri!r} not found")
-            for key in keys_to_remove:
-                self._remove_component(key)
-        else:
-            # Remove specific version
-            key = f"{Resource.make_key(uri)}@{version}"
-            if key not in self._components:
-                raise KeyError(f"Resource {uri!r} version {version!r} not found")
-            self._remove_component(key)
+        pass
 
     def remove_template(self, uri_template: str, version: str | None = None) -> None:
         """Remove resource template(s) from this provider's storage.
@@ -292,25 +256,7 @@ class LocalProvider(
         Raises:
             KeyError: If no matching template is found.
         """
-        if version is None:
-            # Remove all versions
-            keys_to_remove = [
-                k
-                for k, c in self._components.items()
-                if isinstance(c, ResourceTemplate) and c.uri_template == uri_template
-            ]
-            if not keys_to_remove:
-                raise KeyError(f"Template {uri_template!r} not found")
-            for key in keys_to_remove:
-                self._remove_component(key)
-        else:
-            # Remove specific version
-            key = f"{ResourceTemplate.make_key(uri_template)}@{version}"
-            if key not in self._components:
-                raise KeyError(
-                    f"Template {uri_template!r} version {version!r} not found"
-                )
-            self._remove_component(key)
+        pass
 
     def remove_prompt(self, name: str, version: str | None = None) -> None:
         """Remove prompt(s) from this provider's storage.
@@ -322,23 +268,7 @@ class LocalProvider(
         Raises:
             KeyError: If no matching prompt is found.
         """
-        if version is None:
-            # Remove all versions
-            keys_to_remove = [
-                k
-                for k, c in self._components.items()
-                if isinstance(c, Prompt) and c.name == name
-            ]
-            if not keys_to_remove:
-                raise KeyError(f"Prompt {name!r} not found")
-            for key in keys_to_remove:
-                self._remove_component(key)
-        else:
-            # Remove specific version
-            key = f"{Prompt.make_key(name)}@{version}"
-            if key not in self._components:
-                raise KeyError(f"Prompt {name!r} version {version!r} not found")
-            self._remove_component(key)
+        pass
 
     # =========================================================================
     # Provider interface implementation

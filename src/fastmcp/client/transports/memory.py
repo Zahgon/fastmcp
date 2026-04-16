@@ -33,53 +33,7 @@ class FastMCPTransport(ClientTransport):
     async def connect_session(
         self, **session_kwargs: Unpack[SessionKwargs]
     ) -> AsyncIterator[ClientSession]:
-        async with create_client_server_memory_streams() as (
-            client_streams,
-            server_streams,
-        ):
-            client_read, client_write = client_streams
-            server_read, server_write = server_streams
-
-            # Capture exceptions to re-raise after task group cleanup.
-            # anyio task groups can suppress exceptions when cancel_scope.cancel()
-            # is called during cleanup, so we capture and re-raise manually.
-            exception_to_raise: BaseException | None = None
-
-            # IMPORTANT: The lifespan MUST be the outer context and the task
-            # group MUST be the inner context. This ensures the task group
-            # (containing the server's run() and all its pub/sub subscriptions)
-            # is cancelled and fully drained BEFORE the lifespan tears down
-            # the Docket Worker and closes Redis connections. Reversing this
-            # order (e.g. via `async with (tg, lifespan):`) causes the Worker
-            # shutdown to hang for 5 seconds per test because fakeredis
-            # blocking operations hold references that prevent clean
-            # cancellation.
-            async with _enter_server_lifespan(server=self.server):  # noqa: SIM117
-                async with anyio.create_task_group() as tg:
-                    tg.start_soon(
-                        lambda: self.server._mcp_server.run(
-                            server_read,
-                            server_write,
-                            self.server._mcp_server.create_initialization_options(),
-                            raise_exceptions=self.raise_exceptions,
-                        )
-                    )
-
-                    try:
-                        async with ClientSession(
-                            read_stream=client_read,
-                            write_stream=client_write,
-                            **session_kwargs,
-                        ) as client_session:
-                            yield client_session
-                    except BaseException as e:
-                        exception_to_raise = e
-                    finally:
-                        tg.cancel_scope.cancel()
-
-            # Re-raise after task group has exited cleanly
-            if exception_to_raise is not None:
-                raise exception_to_raise
+        pass
 
     def __repr__(self) -> str:
         return f"<FastMCPTransport(server='{self.server.name}')>"
@@ -90,8 +44,4 @@ async def _enter_server_lifespan(
     server: FastMCP | FastMCP1Server,
 ) -> AsyncIterator[None]:
     """Enters the server's lifespan context for FastMCP servers and does nothing for FastMCP 1 servers."""
-    if isinstance(server, FastMCP):
-        async with server._lifespan_manager():
-            yield
-    else:
-        yield
+    pass

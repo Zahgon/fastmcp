@@ -126,11 +126,7 @@ _mcp_level_to_python_level = {
 
 @contextmanager
 def set_context(context: Context) -> Generator[Context, None, None]:
-    token = _current_context.set(context)
-    try:
-        yield context
-    finally:
-        _current_context.reset(token)
+    pass
 
 
 @dataclass
@@ -223,7 +219,7 @@ class Context:
                 return str(result)
             ```
         """
-        return self._task_id is not None
+        pass
 
     @property
     def task_id(self) -> str | None:
@@ -231,7 +227,7 @@ class Context:
 
         Returns None if not running in a background task context.
         """
-        return self._task_id
+        pass
 
     @property
     def origin_request_id(self) -> str | None:
@@ -241,17 +237,12 @@ class Context:
         In background task mode, this is the request_id captured when the task
         was submitted, if one was available.
         """
-        if self.request_context is not None:
-            return str(self.request_context.request_id)
-        return self._origin_request_id
+        pass
 
     @property
     def fastmcp(self) -> FastMCP:
         """Get the FastMCP instance."""
-        fastmcp = self._fastmcp()
-        if fastmcp is None:
-            raise RuntimeError("FastMCP instance is no longer available")
-        return fastmcp
+        pass
 
     async def __aenter__(self) -> Context:
         """Enter the context manager and set this context as the current context."""
@@ -345,10 +336,7 @@ class Context:
             return await call_next(context)
         ```
         """
-        try:
-            return request_ctx.get()
-        except LookupError:
-            return None
+        pass
 
     @property
     def lifespan_context(self) -> dict[str, Any]:
@@ -372,15 +360,7 @@ class Context:
             return "No database connection"
         ```
         """
-        rc = self.request_context
-        if rc is None:
-            # In background tasks, request_context is not available.
-            # Fall back to the server's lifespan result directly (#3095).
-            result = self.fastmcp._lifespan_result
-            if result is not None:
-                return result
-            return {}
-        return rc.lifespan_context
+        pass
 
     async def report_progress(
         self, progress: float, total: float | None = None, message: str | None = None
@@ -395,54 +375,7 @@ class Context:
             total: Optional total value e.g. 100
             message: Optional status message describing current progress
         """
-
-        progress_token = (
-            self.request_context.meta.progressToken
-            if self.request_context and self.request_context.meta
-            else None
-        )
-
-        # Foreground: Send MCP progress notification if we have a token
-        if progress_token is not None:
-            await self.session.send_progress_notification(
-                progress_token=progress_token,
-                progress=progress,
-                total=total,
-                message=message,
-                related_request_id=self.request_id,
-            )
-            return
-
-        # Background: Update Docket execution progress (stored in Redis)
-        # This makes progress visible via tasks/get and notifications/tasks/status
-        from fastmcp.server.dependencies import is_docket_available
-
-        if not is_docket_available():
-            return
-
-        try:
-            from docket.dependencies import current_execution
-
-            execution = current_execution.get()
-
-            # Update progress in Redis using Docket's progress API.
-            # Docket only exposes increment() (relative), so we compute
-            # the delta from the last reported value stored on this execution.
-            if total is not None:
-                await execution.progress.set_total(int(total))
-
-            current = int(progress)
-            last: int = getattr(execution, "_fastmcp_last_progress", 0)
-            delta = current - last
-            if delta > 0:
-                await execution.progress.increment(delta)
-            execution._fastmcp_last_progress = current  # type: ignore[attr-defined]  # ty:ignore[unresolved-attribute]
-
-            if message is not None:
-                await execution.progress.set_message(message)
-        except LookupError:
-            # Not running in Docket worker context - no progress tracking available
-            pass
+        pass
 
     async def _paginate_list(
         self,
@@ -578,7 +511,7 @@ class Context:
         Returns the transport type used to run this server: "stdio", "sse",
         or "streamable-http". Returns None if called outside of a server context.
         """
-        return _current_transport.get()
+        pass
 
     def client_supports_extension(self, extension_id: str) -> bool:
         """Check whether the connected client supports a given MCP extension.
@@ -599,22 +532,12 @@ class Context:
                     return "UI-capable client"
                 return "text-only client"
         """
-        rc = self.request_context
-        if rc is None:
-            return False
-        session = rc.session
-        if not isinstance(session, MiddlewareServerSession):
-            return False
-        return session.client_supports_extension(extension_id)
+        pass
 
     @property
     def client_id(self) -> str | None:
         """Get the client ID if available."""
-        return (
-            getattr(self.request_context.meta, "client_id", None)
-            if self.request_context and self.request_context.meta
-            else None
-        )
+        pass
 
     @property
     def request_id(self) -> str:
@@ -622,12 +545,7 @@ class Context:
 
         Raises RuntimeError if MCP request context is not available.
         """
-        if self.request_context is None:
-            raise RuntimeError(
-                "request_id is not available because the MCP session has not been established yet. "
-                "Check `context.request_context` for None before accessing this attribute."
-            )
-        return str(self.request_context.request_id)
+        pass
 
     @property
     def session_id(self) -> str:
@@ -653,38 +571,7 @@ class Context:
                 return f"Data stored for session {session_id}"
             ```
         """
-        from uuid import uuid4
-
-        # Get session from request context or _session (for on_initialize)
-        request_ctx = self.request_context
-        if request_ctx is not None:
-            session = request_ctx.session
-        elif self._session is not None:
-            session = self._session
-        else:
-            raise RuntimeError(
-                "session_id is not available because no session exists. "
-                "This typically means you're outside a request context."
-            )
-
-        # Check for cached session ID
-        session_id = getattr(session, "_fastmcp_state_prefix", None)
-        if session_id is not None:
-            return session_id
-
-        # For HTTP, try to get from header
-        if request_ctx is not None:
-            request = request_ctx.request
-            if request:
-                session_id = request.headers.get("mcp-session-id")
-
-        # For STDIO/SSE/in-memory, generate a UUID
-        if session_id is None:
-            session_id = str(uuid4())
-
-        # Cache on session for consistency
-        session._fastmcp_state_prefix = session_id  # type: ignore[attr-defined]  # ty:ignore[unresolved-attribute]
-        return session_id
+        pass
 
     @property
     def session(self) -> ServerSession:
@@ -695,22 +582,7 @@ class Context:
 
         Raises RuntimeError if no session is available.
         """
-        # Background task mode: use the stored session
-        if self.is_background_task and self._session is not None:
-            return self._session
-
-        # Request mode: use request context
-        if self.request_context is not None:
-            return self.request_context.session
-
-        # Fallback to stored session (e.g., during on_initialize)
-        if self._session is not None:
-            return self._session
-
-        raise RuntimeError(
-            "session is not available because the MCP session has not been established yet. "
-            "Check `context.request_context` for None before accessing this attribute."
-        )
+        pass
 
     # Convenience methods for common log levels
     async def debug(
@@ -779,8 +651,7 @@ class Context:
 
     async def list_roots(self) -> list[Root]:
         """List the roots available to the server, as indicated by the client."""
-        result = await self.session.list_roots()
-        return result.roots
+        pass
 
     async def send_notification(
         self, notification: mcp.types.ServerNotificationType
@@ -823,13 +694,7 @@ class Context:
             This is a no-op (with a debug log) if not using StreamableHTTP
             transport with an EventStore configured.
         """
-        if not self.request_context or not self.request_context.close_sse_stream:
-            logger.debug(
-                "close_sse_stream() called but not applicable "
-                "(requires StreamableHTTP transport with event_store)"
-            )
-            return
-        await self.request_context.close_sse_stream()
+        pass
 
     async def sample_step(
         self,
@@ -895,19 +760,7 @@ class Context:
                 # Continue with tool results
                 messages = step.history
         """
-        return await sample_step_impl(
-            self,
-            messages=messages,
-            system_prompt=system_prompt,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            model_preferences=model_preferences,
-            tools=tools,
-            tool_choice=tool_choice,
-            auto_execute_tools=execute_tools,
-            mask_error_details=mask_error_details,
-            tool_concurrency=tool_concurrency,
-        )
+        pass
 
     @overload
     async def sample(
@@ -1001,19 +854,7 @@ class Context:
             Currently, sampling in background tasks requires using the low-level
             session.create_message() API directly.
         """
-        # TODO: Add background task support similar to elicit() when is_background_task
-        return await sample_impl(  # ty: ignore[invalid-return-type]
-            self,
-            messages=messages,
-            system_prompt=system_prompt,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            model_preferences=model_preferences,
-            tools=tools,
-            result_type=result_type,
-            mask_error_details=mask_error_details,
-            tool_concurrency=tool_concurrency,
-        )
+        pass
 
     @overload
     async def elicit(
@@ -1303,9 +1144,7 @@ class Context:
 
         Removes from both request-scoped and session-scoped stores.
         """
-        prefixed_key = self._make_state_key(key)
-        self._request_state.pop(prefixed_key, None)
-        await self.fastmcp._state_store.delete(key=prefixed_key)
+        pass
 
     # -------------------------------------------------------------------------
     # Session visibility control
@@ -1347,15 +1186,7 @@ class Context:
             components: Component types to match (e.g., {"tool", "prompt"}).
             match_all: If True, matches all components regardless of other criteria.
         """
-        await _enable_components(
-            self,
-            names=names,
-            keys=keys,
-            version=version,
-            tags=tags,
-            components=components,
-            match_all=match_all,
-        )
+        pass
 
     async def disable_components(
         self,
@@ -1385,15 +1216,7 @@ class Context:
             components: Component types to match (e.g., {"tool", "prompt"}).
             match_all: If True, matches all components regardless of other criteria.
         """
-        await _disable_components(
-            self,
-            names=names,
-            keys=keys,
-            version=version,
-            tags=tags,
-            components=components,
-            match_all=match_all,
-        )
+        pass
 
     async def reset_visibility(self) -> None:
         """Clear all session visibility rules.

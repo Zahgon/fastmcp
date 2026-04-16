@@ -360,30 +360,21 @@ class Client(
                   Use full=True for cancellation cleanup where the session
                   task was started but never completed normally.
         """
-        self._session_state.session = None
-        self._session_state.initialize_result = None
-        if full:
-            self._session_state.session_task = None
-            self._session_state.nesting_counter = 0
+        pass
 
     @property
     def session(self) -> ClientSession:
         """Get the current active session. Raises RuntimeError if not connected."""
-        if self._session_state.session is None:
-            raise RuntimeError(
-                "Client is not connected. Use the 'async with client:' context manager first."
-            )
-
-        return self._session_state.session
+        pass
 
     @property
     def initialize_result(self) -> mcp.types.InitializeResult | None:
         """Get the result of the initialization request."""
-        return self._session_state.initialize_result
+        pass
 
     def set_roots(self, roots: RootsList | RootsHandler) -> None:
         """Set the roots for the client. This does not automatically call `send_roots_list_changed`."""
-        self._session_kwargs["list_roots_callback"] = create_roots_callback(roots)
+        pass
 
     def set_sampling_callback(
         self,
@@ -391,22 +382,13 @@ class Client(
         sampling_capabilities: mcp.types.SamplingCapability | None = None,
     ) -> None:
         """Set the sampling callback for the client."""
-        self._session_kwargs["sampling_callback"] = create_sampling_callback(
-            sampling_callback
-        )
-        self._session_kwargs["sampling_capabilities"] = (
-            sampling_capabilities
-            if sampling_capabilities is not None
-            else mcp.types.SamplingCapability()
-        )
+        pass
 
     def set_elicitation_callback(
         self, elicitation_callback: ElicitationHandler
     ) -> None:
         """Set the elicitation callback for the client."""
-        self._session_kwargs["elicitation_callback"] = create_elicitation_callback(
-            elicitation_callback
-        )
+        pass
 
     def is_connected(self) -> bool:
         """Check if the client is currently connected."""
@@ -458,20 +440,7 @@ class Client(
 
     @asynccontextmanager
     async def _context_manager(self):
-        with catch(get_catch_handlers()):
-            async with self.transport.connect_session(
-                **self._session_kwargs
-            ) as session:
-                self._session_state.session = session
-                # Initialize the session if auto_initialize is enabled
-                try:
-                    if self.auto_initialize:
-                        await self.initialize()
-                    yield
-                except anyio.ClosedResourceError as e:
-                    raise RuntimeError("Server session was closed unexpectedly") from e
-                finally:
-                    self._reset_session_state()
+        pass
 
     async def initialize(
         self,
@@ -547,82 +516,7 @@ class Client(
         never reset outside the lock, preventing the deadlock scenario where
         tasks wait on events that get replaced by other tasks.
         """
-        # ensure only one session is running at a time to avoid race conditions
-        async with self._session_state.lock:
-            need_to_start = (
-                self._session_state.session_task is None
-                or self._session_state.session_task.done()
-            )
-
-            if need_to_start:
-                if self._session_state.nesting_counter != 0:
-                    raise RuntimeError(
-                        f"Internal error: nesting counter should be 0 when starting new session, got {self._session_state.nesting_counter}"
-                    )
-                self._session_state.stop_event = anyio.Event()
-                self._session_state.ready_event = anyio.Event()
-                self._session_state.session_task = asyncio.create_task(
-                    self._session_runner()
-                )
-                try:
-                    await self._session_state.ready_event.wait()
-                except asyncio.CancelledError:
-                    # Cancellation during initial connection startup can leave the
-                    # background session task running because __aexit__ is never invoked
-                    # when __aenter__ is cancelled. Since we hold the session lock here
-                    # and we know we started the session task, it's safe to tear it down
-                    # without impacting other active contexts.
-                    #
-                    # Note: session_task is an asyncio.Task (not anyio) because it needs
-                    # to outlive individual context manager scopes - anyio's structured
-                    # concurrency doesn't allow tasks to escape their task group.
-                    session_task = self._session_state.session_task
-                    if session_task is not None:
-                        # Request a graceful stop if the runner has already reached
-                        # its stop_event wait.
-                        self._session_state.stop_event.set()
-                        session_task.cancel()
-                        with anyio.CancelScope(shield=True):
-                            with anyio.move_on_after(3):
-                                try:
-                                    await session_task
-                                except asyncio.CancelledError:
-                                    pass
-                                except Exception as e:
-                                    logger.debug(
-                                        f"Error during cancelled session cleanup: {e}"
-                                    )
-
-                    # Reset session state so future callers can reconnect cleanly.
-                    self._reset_session_state(full=True)
-
-                    with anyio.CancelScope(shield=True):
-                        with anyio.move_on_after(3):
-                            try:
-                                await self.transport.close()
-                            except Exception as e:
-                                logger.debug(
-                                    f"Error closing transport after cancellation: {e}"
-                                )
-
-                    raise
-
-                if self._session_state.session_task.done():
-                    exception = self._session_state.session_task.exception()
-                    if exception is None:
-                        raise RuntimeError(
-                            "Session task completed without exception but connection failed"
-                        )
-                    # Preserve specific exception types that clients may want to handle
-                    if isinstance(exception, httpx.HTTPStatusError | McpError):
-                        raise exception
-                    raise RuntimeError(
-                        f"Client failed to connect: {exception}"
-                    ) from exception
-
-            self._session_state.nesting_counter += 1
-
-        return self
+        pass
 
     async def _disconnect(self, force: bool = False):
         """
@@ -685,16 +579,7 @@ class Client(
         redundant exception re-raising while ensuring waiting tasks are
         always unblocked via the finally block.
         """
-        try:
-            async with AsyncExitStack() as stack:
-                await stack.enter_async_context(self._context_manager())
-                # Session/context is now ready
-                self._session_state.ready_event.set()
-                # Wait until disconnect/stop is requested
-                await self._session_state.stop_event.wait()
-        finally:
-            # Ensure ready event is set even if context manager entry fails
-            self._session_state.ready_event.set()
+        pass
 
     async def _await_with_session_monitoring(
         self, coro: Coroutine[Any, Any, ResultT]
@@ -769,19 +654,7 @@ class Client(
         Called when notifications/tasks/status is received from server.
         Updates Task object's cache and triggers events/callbacks.
         """
-        # Extract task ID from notification params
-        task_id = notification.params.taskId
-        if not task_id:
-            return
-
-        # Look up task in registry (weakref)
-        task_ref = self._task_registry.get(task_id)
-        if task_ref:
-            task = task_ref()  # Dereference weakref
-            if task:
-                # Convert notification params to GetTaskResult (they share the same fields via Task)
-                status = GetTaskResult.model_validate(notification.params.model_dump())
-                task._handle_status_notification(status)
+        pass
 
     async def close(self):
         await self._disconnect(force=True)
@@ -791,8 +664,7 @@ class Client(
 
     async def ping(self) -> bool:
         """Send a ping request."""
-        result = await self._await_with_session_monitoring(self.session.send_ping())
-        return isinstance(result, mcp.types.EmptyResult)
+        pass
 
     async def cancel(
         self,
@@ -819,17 +691,15 @@ class Client(
         message: str | None = None,
     ) -> None:
         """Send a progress notification."""
-        await self.session.send_progress_notification(
-            progress_token, progress, total, message
-        )
+        pass
 
     async def set_logging_level(self, level: mcp.types.LoggingLevel) -> None:
         """Send a logging/setLevel request."""
-        await self._await_with_session_monitoring(self.session.set_logging_level(level))
+        pass
 
     async def send_roots_list_changed(self) -> None:
         """Send a roots/list_changed notification."""
-        await self.session.send_roots_list_changed()
+        pass
 
     # --- Completion ---
 
@@ -855,14 +725,7 @@ class Client(
             RuntimeError: If called while the client is not connected.
             McpError: If the request results in a TimeoutError | JSONRPCError
         """
-        logger.debug(f"[{self.name}] called complete: {ref}")
-
-        result = await self._await_with_session_monitoring(
-            self.session.complete(
-                ref=ref, argument=argument, context_arguments=context_arguments
-            )
-        )
-        return result
+        pass
 
     async def complete(
         self,
@@ -885,15 +748,8 @@ class Client(
             RuntimeError: If called while the client is not connected.
             McpError: If the request results in a TimeoutError | JSONRPCError
         """
-        result = await self.complete_mcp(
-            ref=ref, argument=argument, context_arguments=context_arguments
-        )
-        return result.completion
+        pass
 
     @classmethod
     def generate_name(cls, name: str | None = None) -> str:
-        class_name = cls.__name__
-        if name is None:
-            return f"{class_name}-{secrets.token_hex(2)}"
-        else:
-            return f"{class_name}-{name}-{secrets.token_hex(2)}"
+        pass

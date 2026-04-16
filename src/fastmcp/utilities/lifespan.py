@@ -45,12 +45,6 @@ def combine_lifespans(
 
     @asynccontextmanager
     async def combined(app: AppT) -> AsyncIterator[dict[str, Any]]:
-        merged: dict[str, Any] = {}
-        async with AsyncExitStack() as stack:
-            for ls in lifespans:
-                result = await stack.enter_async_context(ls(app))
-                if result is not None:
-                    merged.update(result)
-            yield merged
+        pass
 
     return combined

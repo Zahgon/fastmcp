@@ -85,32 +85,17 @@ class SampleStep:
     @property
     def is_tool_use(self) -> bool:
         """True if the LLM is requesting tool execution."""
-        if isinstance(self.response, CreateMessageResultWithTools):
-            return self.response.stopReason == "toolUse"
-        return False
+        pass
 
     @property
     def text(self) -> str | None:
         """Extract text from the response, if available."""
-        content = self.response.content
-        if isinstance(content, list):
-            for block in content:
-                if isinstance(block, TextContent):
-                    return block.text
-            return None
-        elif isinstance(content, TextContent):
-            return content.text
-        return None
+        pass
 
     @property
     def tool_calls(self) -> list[ToolUseContent]:
         """Get the list of tool calls from the response."""
-        content = self.response.content
-        if isinstance(content, list):
-            return [c for c in content if isinstance(c, ToolUseContent)]
-        elif isinstance(content, ToolUseContent):
-            return [content]
-        return []
+        pass
 
 
 def _parse_model_preferences(
@@ -445,7 +430,7 @@ def create_final_response_tool(result_type: type) -> SamplingTool:
 
     # The fn just returns the input as-is (validation happens in the loop)
     def final_response(**kwargs: Any) -> dict[str, Any]:
-        return kwargs
+        pass
 
     return SamplingTool(
         name="final_response",

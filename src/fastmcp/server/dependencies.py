@@ -580,16 +580,7 @@ def without_injected_parameters(fn: Callable[..., Any]) -> Callable[..., Any]:
     fn_is_async = is_coroutine_function(fn)
 
     async def wrapper(**user_kwargs: Any) -> Any:
-        async with resolve_dependencies(fn, user_kwargs) as resolved_kwargs:
-            if fn_is_async:
-                return await fn(**resolved_kwargs)
-            else:
-                # Run sync functions in threadpool to avoid blocking the event loop
-                result = await call_sync_fn_in_threadpool(fn, **resolved_kwargs)
-                # Handle sync wrappers that return awaitables (e.g., partial(async_fn))
-                if inspect.isawaitable(result):
-                    result = await result
-                return result
+        pass
 
     # Resolve string annotations (from `from __future__ import annotations`) using
     # the original function's module context. The wrapper's __globals__ points to
@@ -1155,34 +1146,27 @@ class InMemoryProgress:
 
     @property
     def current(self) -> int | None:
-        return self._current
+        pass
 
     @property
     def total(self) -> int:
-        return self._total
+        pass
 
     @property
     def message(self) -> str | None:
-        return self._message
+        pass
 
     async def set_total(self, total: int) -> None:
         """Set the total/target value for progress tracking."""
-        if total < 1:
-            raise ValueError("Total must be at least 1")
-        self._total = total
+        pass
 
     async def increment(self, amount: int = 1) -> None:
         """Atomically increment the current progress value."""
-        if amount < 1:
-            raise ValueError("Amount must be at least 1")
-        if self._current is None:
-            self._current = amount
-        else:
-            self._current += amount
+        pass
 
     async def set_message(self, message: str | None) -> None:
         """Update the progress status message."""
-        self._message = message
+        pass
 
 
 class Progress(Dependency["Progress"]):
@@ -1228,35 +1212,29 @@ class Progress(Dependency["Progress"]):
     @property
     def current(self) -> int | None:
         """Current progress value."""
-        assert self._impl is not None, "Progress must be used as a dependency"
-        return self._impl.current
+        pass
 
     @property
     def total(self) -> int:
         """Total/target progress value."""
-        assert self._impl is not None, "Progress must be used as a dependency"
-        return self._impl.total
+        pass
 
     @property
     def message(self) -> str | None:
         """Current progress message."""
-        assert self._impl is not None, "Progress must be used as a dependency"
-        return self._impl.message
+        pass
 
     async def set_total(self, total: int) -> None:
         """Set the total/target value for progress tracking."""
-        assert self._impl is not None, "Progress must be used as a dependency"
-        await self._impl.set_total(total)
+        pass
 
     async def increment(self, amount: int = 1) -> None:
         """Atomically increment the current progress value."""
-        assert self._impl is not None, "Progress must be used as a dependency"
-        await self._impl.increment(amount)
+        pass
 
     async def set_message(self, message: str | None) -> None:
         """Update the progress status message."""
-        assert self._impl is not None, "Progress must be used as a dependency"
-        await self._impl.set_message(message)
+        pass
 
 
 # --- Access Token dependency ---

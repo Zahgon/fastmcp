@@ -79,11 +79,7 @@ class StarletteWithLifespan(Starlette):
 
 @contextmanager
 def set_http_request(request: Request) -> Generator[Request, None, None]:
-    token = _current_http_request.set(request)
-    try:
-        yield request
-    finally:
-        _current_http_request.reset(token)
+    pass
 
 
 class RequestContextMiddleware:
@@ -221,7 +217,7 @@ def create_sse_app(
     else:
         # No auth required
         async def sse_endpoint(request: Request) -> Response:
-            return await handle_sse(request.scope, request.receive, request._send)
+            pass
 
         server_routes.append(
             Route(

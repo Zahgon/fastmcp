@@ -88,27 +88,7 @@ class AuthMiddleware(Middleware):
         call_next: CallNext[mt.ListToolsRequest, Sequence[Tool]],
     ) -> Sequence[Tool]:
         """Filter tools/list response based on auth checks."""
-        tools = await call_next(context)
-
-        # STDIO has no auth concept, skip filtering
-        # Late import to avoid circular import with context.py
-        from fastmcp.server.context import _current_transport
-
-        if _current_transport.get() == "stdio":
-            return tools
-
-        token = get_access_token()
-
-        authorized_tools: list[Tool] = []
-        for tool in tools:
-            ctx = AuthContext(token=token, component=tool)
-            try:
-                if await run_auth_checks(self.auth, ctx):
-                    authorized_tools.append(tool)
-            except AuthorizationError:
-                continue
-
-        return authorized_tools
+        pass
 
     async def on_call_tool(
         self,
@@ -116,42 +96,7 @@ class AuthMiddleware(Middleware):
         call_next: CallNext[mt.CallToolRequestParams, ToolResult],
     ) -> ToolResult:
         """Check auth before tool execution."""
-        # STDIO has no auth concept, skip enforcement
-        # Late import to avoid circular import with context.py
-        from fastmcp.server.context import _current_transport
-
-        if _current_transport.get() == "stdio":
-            return await call_next(context)
-
-        # Get the tool being called
-        tool_name = context.message.name
-        fastmcp = context.fastmcp_context
-        if fastmcp is None:
-            # Fail closed: deny access when context is missing
-            logger.warning(
-                f"AuthMiddleware: fastmcp_context is None for tool '{tool_name}'. "
-                "Denying access for security."
-            )
-            raise AuthorizationError(
-                f"Authorization failed for tool '{tool_name}': missing context"
-            )
-
-        # Get tool (component auth is checked in get_tool, raises if unauthorized)
-        tool = await fastmcp.fastmcp.get_tool(tool_name)
-        if tool is None:
-            raise AuthorizationError(
-                f"Authorization failed for tool '{tool_name}': tool not found"
-            )
-
-        # Global auth check
-        token = get_access_token()
-        ctx = AuthContext(token=token, component=tool)
-        if not await run_auth_checks(self.auth, ctx):
-            raise AuthorizationError(
-                f"Authorization failed for tool '{tool_name}': insufficient permissions"
-            )
-
-        return await call_next(context)
+        pass
 
     async def on_list_resources(
         self,
@@ -159,26 +104,7 @@ class AuthMiddleware(Middleware):
         call_next: CallNext[mt.ListResourcesRequest, Sequence[Resource]],
     ) -> Sequence[Resource]:
         """Filter resources/list response based on auth checks."""
-        resources = await call_next(context)
-
-        # STDIO has no auth concept, skip filtering
-        from fastmcp.server.context import _current_transport
-
-        if _current_transport.get() == "stdio":
-            return resources
-
-        token = get_access_token()
-
-        authorized_resources: list[Resource] = []
-        for resource in resources:
-            ctx = AuthContext(token=token, component=resource)
-            try:
-                if await run_auth_checks(self.auth, ctx):
-                    authorized_resources.append(resource)
-            except AuthorizationError:
-                continue
-
-        return authorized_resources
+        pass
 
     async def on_read_resource(
         self,
@@ -186,42 +112,7 @@ class AuthMiddleware(Middleware):
         call_next: CallNext[mt.ReadResourceRequestParams, ResourceResult],
     ) -> ResourceResult:
         """Check auth before resource read."""
-        # STDIO has no auth concept, skip enforcement
-        from fastmcp.server.context import _current_transport
-
-        if _current_transport.get() == "stdio":
-            return await call_next(context)
-
-        # Get the resource being read
-        uri = context.message.uri
-        fastmcp = context.fastmcp_context
-        if fastmcp is None:
-            logger.warning(
-                f"AuthMiddleware: fastmcp_context is None for resource '{uri}'. "
-                "Denying access for security."
-            )
-            raise AuthorizationError(
-                f"Authorization failed for resource '{uri}': missing context"
-            )
-
-        # Get resource/template (component auth is checked in get_*, raises if unauthorized)
-        component = await fastmcp.fastmcp.get_resource(str(uri))
-        if component is None:
-            component = await fastmcp.fastmcp.get_resource_template(str(uri))
-        if component is None:
-            raise AuthorizationError(
-                f"Authorization failed for resource '{uri}': resource not found"
-            )
-
-        # Global auth check
-        token = get_access_token()
-        ctx = AuthContext(token=token, component=component)
-        if not await run_auth_checks(self.auth, ctx):
-            raise AuthorizationError(
-                f"Authorization failed for resource '{uri}': insufficient permissions"
-            )
-
-        return await call_next(context)
+        pass
 
     async def on_list_resource_templates(
         self,
@@ -231,26 +122,7 @@ class AuthMiddleware(Middleware):
         ],
     ) -> Sequence[ResourceTemplate]:
         """Filter resource templates/list response based on auth checks."""
-        templates = await call_next(context)
-
-        # STDIO has no auth concept, skip filtering
-        from fastmcp.server.context import _current_transport
-
-        if _current_transport.get() == "stdio":
-            return templates
-
-        token = get_access_token()
-
-        authorized_templates: list[ResourceTemplate] = []
-        for template in templates:
-            ctx = AuthContext(token=token, component=template)
-            try:
-                if await run_auth_checks(self.auth, ctx):
-                    authorized_templates.append(template)
-            except AuthorizationError:
-                continue
-
-        return authorized_templates
+        pass
 
     async def on_list_prompts(
         self,
@@ -258,26 +130,7 @@ class AuthMiddleware(Middleware):
         call_next: CallNext[mt.ListPromptsRequest, Sequence[Prompt]],
     ) -> Sequence[Prompt]:
         """Filter prompts/list response based on auth checks."""
-        prompts = await call_next(context)
-
-        # STDIO has no auth concept, skip filtering
-        from fastmcp.server.context import _current_transport
-
-        if _current_transport.get() == "stdio":
-            return prompts
-
-        token = get_access_token()
-
-        authorized_prompts: list[Prompt] = []
-        for prompt in prompts:
-            ctx = AuthContext(token=token, component=prompt)
-            try:
-                if await run_auth_checks(self.auth, ctx):
-                    authorized_prompts.append(prompt)
-            except AuthorizationError:
-                continue
-
-        return authorized_prompts
+        pass
 
     async def on_get_prompt(
         self,
@@ -285,37 +138,4 @@ class AuthMiddleware(Middleware):
         call_next: CallNext[mt.GetPromptRequestParams, PromptResult],
     ) -> PromptResult:
         """Check auth before prompt render."""
-        # STDIO has no auth concept, skip enforcement
-        from fastmcp.server.context import _current_transport
-
-        if _current_transport.get() == "stdio":
-            return await call_next(context)
-
-        # Get the prompt being rendered
-        prompt_name = context.message.name
-        fastmcp = context.fastmcp_context
-        if fastmcp is None:
-            logger.warning(
-                f"AuthMiddleware: fastmcp_context is None for prompt '{prompt_name}'. "
-                "Denying access for security."
-            )
-            raise AuthorizationError(
-                f"Authorization failed for prompt '{prompt_name}': missing context"
-            )
-
-        # Get prompt (component auth is checked in get_prompt, raises if unauthorized)
-        prompt = await fastmcp.fastmcp.get_prompt(prompt_name)
-        if prompt is None:
-            raise AuthorizationError(
-                f"Authorization failed for prompt '{prompt_name}': prompt not found"
-            )
-
-        # Global auth check
-        token = get_access_token()
-        ctx = AuthContext(token=token, component=prompt)
-        if not await run_auth_checks(self.auth, ctx):
-            raise AuthorizationError(
-                f"Authorization failed for prompt '{prompt_name}': insufficient permissions"
-            )
-
-        return await call_next(context)
+        pass

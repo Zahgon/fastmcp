@@ -508,6 +508,6 @@ def prompt(
         raise TypeError(f"Invalid first argument: {type(name_or_fn)}")
 
     def wrapper(fn: F) -> F:
-        return decorator(fn, prompt_name)
+        pass
 
     return wrapper

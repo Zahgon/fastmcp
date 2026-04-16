@@ -49,6 +49,6 @@ def create_log_callback(handler: LogHandler | None = None) -> LoggingFnT:
         handler = default_log_handler
 
     async def log_callback(params: LoggingMessageNotificationParams) -> None:
-        await handler(params)
+        pass
 
     return log_callback

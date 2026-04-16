@@ -194,22 +194,7 @@ class _ClampedLogFilter(logging.Filter):
 
     @override
     def filter(self, record: logging.LogRecord) -> bool:
-        if self.max_level:
-            max_level_no, max_level_name = self.max_level
-
-            if record.levelno > max_level_no:
-                record.levelno = max_level_no
-                record.levelname = max_level_name
-                return True
-
-        if self.min_level:
-            min_level_no, min_level_name = self.min_level
-            if record.levelno < min_level_no:
-                record.levelno = min_level_no
-                record.levelname = min_level_name
-                return True
-
-        return True
+        pass
 
 
 def _clamp_logger(

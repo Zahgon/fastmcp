@@ -74,33 +74,7 @@ class ResponseLimitingMiddleware(Middleware):
         meta: dict[str, Any] | None = None,
     ) -> ToolResult:
         """Truncate text to fit within max_size and wrap in ToolResult."""
-        suffix_bytes = len(self.truncation_suffix.encode("utf-8"))
-        # Account for JSON wrapper overhead: {"content":[{"type":"text","text":"..."}]}
-        overhead = 50
-        target_size = self.max_size - suffix_bytes - overhead
-
-        if target_size <= 0:
-            # Edge case: max_size too small for even the suffix
-            truncated = self.truncation_suffix
-        else:
-            # Truncate to target size, preserving UTF-8 boundaries
-            encoded = text.encode("utf-8")
-            if len(encoded) <= target_size:
-                truncated = text + self.truncation_suffix
-            else:
-                truncated = (
-                    encoded[:target_size].decode("utf-8", errors="ignore")
-                    + self.truncation_suffix
-                )
-
-        # Preserve original meta, falling back to {} when absent. Having
-        # meta set ensures to_mcp_result() returns a CallToolResult, which
-        # bypasses MCP SDK outputSchema validation — a truncated response
-        # is no longer valid structured output.
-        return ToolResult(
-            content=[TextContent(type="text", text=truncated)],
-            meta=meta if meta is not None else {},
-        )
+        pass
 
     async def on_call_tool(
         self,
@@ -108,30 +82,4 @@ class ResponseLimitingMiddleware(Middleware):
         call_next: CallNext[mt.CallToolRequestParams, ToolResult],
     ) -> ToolResult:
         """Intercept tool calls and limit response size."""
-        result = await call_next(context)
-
-        # Check if we should limit this tool
-        if self.tools is not None and context.message.name not in self.tools:
-            return result
-
-        # Measure serialized size
-        serialized = pydantic_core.to_json(result, fallback=str)
-        if len(serialized) <= self.max_size:
-            return result
-
-        # Over limit: extract text, truncate, return single TextContent
-        logger.warning(
-            "Tool %r response exceeds size limit: %d bytes > %d bytes, truncating",
-            context.message.name,
-            len(serialized),
-            self.max_size,
-        )
-
-        texts = [b.text for b in result.content if isinstance(b, TextContent)]
-        text = (
-            "\n\n".join(texts)
-            if texts
-            else serialized.decode("utf-8", errors="replace")
-        )
-
-        return self._truncate_to_result(text, meta=result.meta)
+        pass

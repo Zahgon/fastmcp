@@ -63,7 +63,7 @@ def find_gemini_command() -> str | None:
 
 def check_gemini_cli_available() -> bool:
     """Check if Gemini CLI is available."""
-    return find_gemini_command() is not None
+    pass
 
 
 def install_gemini_cli(

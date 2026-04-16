@@ -780,7 +780,7 @@ def _create_client_factory(
             )
 
             def fresh_client_factory() -> Client:
-                return client.new()
+                pass
 
             return fresh_client_factory
 
@@ -791,12 +791,12 @@ def _create_client_factory(
             )
 
             def reuse_client_factory() -> Client:
-                return client
+                pass
 
             return reuse_client_factory
 
         def fresh_client_factory() -> Client:
-            return client.new()
+            pass
 
         return fresh_client_factory
     else:
@@ -804,7 +804,7 @@ def _create_client_factory(
         base_client = ProxyClient(cast(Any, target))
 
         def proxy_client_factory() -> Client:
-            return base_client.new()
+            pass
 
         return proxy_client_factory
 
@@ -865,8 +865,7 @@ async def default_proxy_roots_handler(
     context: RequestContext[ClientSession, LifespanContextT],
 ) -> RootsList:
     """Forward list roots request from remote server to proxy's connected clients."""
-    ctx = get_context()
-    return await ctx.list_roots()
+    pass
 
 
 async def default_proxy_sampling_handler(
@@ -875,21 +874,7 @@ async def default_proxy_sampling_handler(
     context: RequestContext[ClientSession, LifespanContextT],
 ) -> mcp.types.CreateMessageResult:
     """Forward sampling request from remote server to proxy's connected clients."""
-    ctx = get_context()
-    result = await ctx.sample(
-        list(messages),
-        system_prompt=params.systemPrompt,
-        temperature=params.temperature,
-        max_tokens=params.maxTokens,
-        model_preferences=params.modelPreferences,
-    )
-    content = mcp.types.TextContent(type="text", text=result.text or "")
-    return mcp.types.CreateMessageResult(
-        role="assistant",
-        model="fastmcp-client",
-        # TODO(ty): remove when ty supports isinstance exclusion narrowing
-        content=content,
-    )
+    pass
 
 
 async def default_proxy_elicitation_handler(
@@ -899,27 +884,12 @@ async def default_proxy_elicitation_handler(
     context: RequestContext[ClientSession, LifespanContextT],
 ) -> ElicitResult:
     """Forward elicitation request from remote server to proxy's connected clients."""
-    ctx = get_context()
-    # requestedSchema only exists on ElicitRequestFormParams, not ElicitRequestURLParams
-    requested_schema = (
-        params.requestedSchema
-        if isinstance(params, ElicitRequestFormParams)
-        else {"type": "object", "properties": {}}
-    )
-    result = await ctx.session.elicit(
-        message=message,
-        requestedSchema=requested_schema,
-        related_request_id=ctx.request_id,
-    )
-    return ElicitResult(action=result.action, content=result.content)
+    pass
 
 
 async def default_proxy_log_handler(message: LogMessage) -> None:
     """Forward log notification from remote server to proxy's connected clients."""
-    ctx = get_context()
-    msg = message.data.get("msg")
-    extra = message.data.get("extra")
-    await ctx.log(msg, level=message.level, logger_name=message.logger, extra=extra)
+    pass
 
 
 async def default_proxy_progress_handler(
@@ -928,8 +898,7 @@ async def default_proxy_progress_handler(
     message: str | None,
 ) -> None:
     """Forward progress notification from remote server to proxy's connected clients."""
-    ctx = get_context()
-    await ctx.report_progress(progress, total, message)
+    pass
 
 
 def _restore_request_context(
@@ -949,26 +918,7 @@ def _restore_request_context(
     loop.  Instead we construct a fresh ``Context`` here after restoring
     ``request_ctx``, so its property accesses read the correct values.
     """
-    from fastmcp.server.context import Context, _current_context
-
-    stashed = rc_ref[0]
-    if stashed is None:
-        return
-
-    rc, fastmcp_ref = stashed
-    try:
-        current_rc = request_ctx.get()
-    except LookupError:
-        request_ctx.set(rc)
-        fastmcp = fastmcp_ref()
-        if fastmcp is not None:
-            _current_context.set(Context(fastmcp))
-        return
-    if current_rc.session is rc.session and current_rc.request_id != rc.request_id:
-        request_ctx.set(rc)
-        fastmcp = fastmcp_ref()
-        if fastmcp is not None:
-            _current_context.set(Context(fastmcp))
+    pass
 
 
 def _make_restoring_handler(handler: Callable, rc_ref: list[Any]) -> Callable:
@@ -978,12 +928,7 @@ def _make_restoring_handler(handler: Callable, rc_ref: list[Any]) -> Callable:
     ``inspect.isfunction()`` checks in handler registration paths
     (e.g., ``create_roots_callback``).
     """
-
-    async def wrapper(*args: Any, **kwargs: Any) -> Any:
-        _restore_request_context(rc_ref)
-        return await handler(*args, **kwargs)
-
-    return wrapper
+    pass
 
 
 class ProxyClient(Client[ClientTransportT]):
@@ -1090,19 +1035,4 @@ class StatefulProxyClient(ProxyClient[ClientTransportT]):
 
         Use this method as the client factory for stateful proxy server.
         """
-        session = get_context().session
-        proxy_client = self._caches.get(session, None)
-
-        if proxy_client is None:
-            proxy_client = self.new()
-            logger.debug(f"{proxy_client} created for {session}")
-            self._caches[session] = proxy_client
-
-            async def _on_session_exit():
-                self._caches.pop(session)
-                logger.debug(f"{proxy_client} will be disconnect")
-                await proxy_client._disconnect(force=True)
-
-            session._exit_stack.push_async_callback(_on_session_exit)
-
-        return proxy_client
+        pass

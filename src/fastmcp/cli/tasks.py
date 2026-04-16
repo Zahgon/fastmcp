@@ -76,35 +76,4 @@ def worker(
         fastmcp tasks worker server.py
         fastmcp tasks worker examples/tasks/server.py
     """
-    import fastmcp
-
-    check_distributed_backend()
-
-    # Load server to get task functions
-    try:
-        config, _resolved_spec = load_and_merge_config(server_spec)
-    except FileNotFoundError:
-        sys.exit(1)
-
-    # Load the server
-    server = asyncio.run(config.source.load_server())
-
-    async def run_worker():
-        """Enter server lifespan and camp forever."""
-        async with server._lifespan_manager():
-            console.print(
-                f"[bold green]✓[/bold green] Starting worker for [cyan]{server.name}[/cyan]"
-            )
-            console.print(f"  Docket: {fastmcp.settings.docket.name}")
-            console.print(f"  Backend: {fastmcp.settings.docket.url}")
-            console.print(f"  Concurrency: {fastmcp.settings.docket.concurrency}")
-
-            # Server's lifespan has started its worker - just camp here forever
-            while True:
-                await asyncio.sleep(3600)
-
-    try:
-        asyncio.run(run_worker())
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Worker stopped[/yellow]")
-        sys.exit(0)
+    pass

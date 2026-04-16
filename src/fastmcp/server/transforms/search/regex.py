@@ -33,9 +33,7 @@ class RegexSearchTransform(BaseSearchTransform):
 
             Returns matching tool definitions in the same format as list_tools.
             """
-            hidden = await transform._get_visible_tools(ctx)
-            results = await transform._search(hidden, pattern)
-            return await transform._render_results(results)
+            pass
 
         return Tool.from_function(fn=search_tools, name=self._search_tool_name)
 

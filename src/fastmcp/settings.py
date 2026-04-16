@@ -181,9 +181,7 @@ class Settings(BaseSettings):
     @field_validator("log_level", mode="before")
     @classmethod
     def normalize_log_level(cls, v):
-        if isinstance(v, str):
-            return v.upper()
-        return v
+        pass
 
     docket: DocketSettings = DocketSettings()
 

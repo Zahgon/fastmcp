@@ -76,24 +76,19 @@ class FileResource(Resource):
 
     @property
     def _async_path(self) -> AsyncPath:
-        return AsyncPath(self.path)
+        pass
 
     @pydantic.field_validator("path")
     @classmethod
     def validate_absolute_path(cls, path: Path) -> Path:
         """Ensure path is absolute."""
-        if not path.is_absolute():
-            raise ValueError("Path must be absolute")
-        return path
+        pass
 
     @pydantic.field_validator("is_binary")
     @classmethod
     def set_binary_from_mime_type(cls, is_binary: bool, info: ValidationInfo) -> bool:
         """Set is_binary based on mime_type if not explicitly set."""
-        if is_binary:
-            return True
-        mime_type = info.data.get("mime_type", "text/plain")
-        return not mime_type.startswith("text/")
+        pass
 
     @override
     async def read(self) -> ResourceResult:
@@ -147,15 +142,13 @@ class DirectoryResource(Resource):
 
     @property
     def _async_path(self) -> AsyncPath:
-        return AsyncPath(self.path)
+        pass
 
     @pydantic.field_validator("path")
     @classmethod
     def validate_absolute_path(cls, path: Path) -> Path:
         """Ensure path is absolute."""
-        if not path.is_absolute():
-            raise ValueError("Path must be absolute")
-        return path
+        pass
 
     async def list_files(self) -> list[Path]:
         """List files in the directory."""

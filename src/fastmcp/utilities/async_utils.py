@@ -67,13 +67,7 @@ async def gather(
     results: list[T | BaseException] = [None] * len(awaitables)  # type: ignore[assignment]  # ty:ignore[invalid-assignment]
 
     async def run_at(i: int, aw: Awaitable[T]) -> None:
-        try:
-            results[i] = await aw
-        except BaseException as e:
-            if return_exceptions:
-                results[i] = e
-            else:
-                raise
+        pass
 
     async with anyio.create_task_group() as tg:
         for i, aw in enumerate(awaitables):

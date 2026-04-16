@@ -123,9 +123,7 @@ class Deployment(BaseModel):
         """
 
         def replace_var(match: re.Match) -> str:
-            var_name = match.group(1)
-            # Return the environment variable value if it exists, otherwise keep the placeholder
-            return os.environ.get(var_name, match.group(0))
+            pass
 
         # Match ${VAR_NAME} pattern and replace with environment variable values
         return re.sub(r"\$\{([^}]+)\}", replace_var, value)
@@ -190,9 +188,7 @@ class MCPServerConfig(BaseModel):
         No string parsing happens here - that's only at CLI boundaries.
         MCPServerConfig works only with properly typed objects.
         """
-        if isinstance(v, dict):
-            return FileSystemSource(**v)
-        return v  # type: ignore[return-value]  # ty:ignore[invalid-return-type]
+        pass
 
     @field_validator("environment", mode="before")
     @classmethod
@@ -201,9 +197,7 @@ class MCPServerConfig(BaseModel):
 
         For backward compatibility, if no type is specified, default to "uv".
         """
-        if isinstance(v, dict):
-            return UVEnvironment(**v)
-        return v
+        pass
 
     @field_validator("deployment", mode="before")
     @classmethod
@@ -215,9 +209,7 @@ class MCPServerConfig(BaseModel):
         - dict that can be converted to Deployment
 
         """
-        if isinstance(v, dict):
-            return Deployment(**v)
-        return cast(Deployment, v)  # type: ignore[return-value]  # ty:ignore[redundant-cast]
+        pass
 
     @classmethod
     def from_file(cls, file_path: Path) -> MCPServerConfig:
@@ -285,39 +277,7 @@ class MCPServerConfig(BaseModel):
         Returns:
             MCPServerConfig instance
         """
-        # Build environment config if any env args provided
-        environment = None
-        if any([python, dependencies, requirements, project, editable]):
-            environment = UVEnvironment(
-                python=python,
-                dependencies=dependencies,
-                requirements=Path(requirements) if requirements else None,
-                project=Path(project) if project else None,
-                editable=[Path(editable)] if editable else None,
-            )
-
-        # Build deployment config if any deployment args provided
-        deployment = None
-        if any([transport, host, port, path, log_level, env, cwd, args]):
-            # Convert streamable-http to http for backward compatibility
-            if transport == "streamable-http":
-                transport = "http"
-            deployment = Deployment(
-                transport=transport,
-                host=host,
-                port=port,
-                path=path,
-                log_level=log_level,
-                env=env,
-                cwd=cwd,
-                args=args,
-            )
-
-        return cls(
-            source=source,
-            environment=environment,
-            deployment=deployment,
-        )
+        pass
 
     @classmethod
     def find_config(cls, start_path: Path | None = None) -> Path | None:
@@ -385,32 +345,7 @@ class MCPServerConfig(BaseModel):
             **kwargs: Additional arguments to pass to server.run_async()
                      These override config settings
         """
-        # Apply deployment settings (env vars, cwd)
-        if self.deployment:
-            self.deployment.apply_runtime_settings()
-
-        # Load the server
-        server = await self.source.load_server()
-
-        # Build run arguments from config
-        run_args = {}
-        if self.deployment:
-            if self.deployment.transport:
-                run_args["transport"] = self.deployment.transport
-            if self.deployment.host:
-                run_args["host"] = self.deployment.host
-            if self.deployment.port:
-                run_args["port"] = self.deployment.port
-            if self.deployment.path:
-                run_args["path"] = self.deployment.path
-            if self.deployment.log_level:
-                run_args["log_level"] = self.deployment.log_level
-
-        # Override with any provided kwargs
-        run_args.update(kwargs)
-
-        # Run the server
-        await server.run_async(**run_args)
+        pass
 
 
 def generate_schema(output_path: Path | str | None = None) -> dict[str, Any] | None:

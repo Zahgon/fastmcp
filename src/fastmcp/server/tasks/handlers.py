@@ -209,7 +209,7 @@ async def submit_to_docket(
             ):
 
                 async def _cleanup_subscriber() -> None:
-                    await stop_subscriber(session_id)  # type: ignore[arg-type]
+                    pass
 
                 ctx.session._exit_stack.push_async_callback(_cleanup_subscriber)
                 ctx.session._notification_cleanup_registered = True  # type: ignore[attr-defined]  # ty:ignore[unresolved-attribute]

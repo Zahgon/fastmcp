@@ -48,24 +48,6 @@ def create_sampling_callback(
         context,
         params: SamplingParams,
     ) -> CreateMessageResult | CreateMessageResultWithTools | mcp.types.ErrorData:
-        try:
-            result = sampling_handler(params.messages, params, context)
-            if inspect.isawaitable(result):
-                result = await result
-
-            result = cast(SamplingHandlerResult, result)
-
-            if isinstance(result, str):
-                result = CreateMessageResult(
-                    role="assistant",
-                    model="fastmcp-client",
-                    content=mcp.types.TextContent(type="text", text=result),
-                )
-            return result
-        except Exception as e:
-            return mcp.types.ErrorData(
-                code=mcp.types.INTERNAL_ERROR,
-                message=str(e),
-            )
+        pass
 
     return _sampling_handler

@@ -88,7 +88,7 @@ class TokenCache:
     @property
     def enabled(self) -> bool:
         """Return whether caching is active."""
-        return self._ttl > 0 and self._max_size > 0
+        pass
 
     # -- public API ----------------------------------------------------------
 
@@ -122,23 +122,7 @@ class TokenCache:
         tokens, missing scopes, HTTP errors, timeouts) must **not** be cached
         so that transient problems do not produce sticky false negatives.
         """
-        if not self.enabled:
-            return
-
-        cache_key = self._hash_token(token)
-
-        self._maybe_cleanup()
-        if cache_key not in self._entries:
-            self._enforce_size_limit()
-
-        expires_at = time.time() + self._ttl
-        if result.expires_at:
-            expires_at = min(expires_at, float(result.expires_at))
-
-        self._entries[cache_key] = _CacheEntry(
-            result=result.model_copy(deep=True),
-            expires_at=expires_at,
-        )
+        pass
 
     # -- internals -----------------------------------------------------------
 
@@ -149,25 +133,12 @@ class TokenCache:
 
     def _cleanup_expired(self) -> None:
         """Remove all entries whose TTL has elapsed."""
-        now = time.time()
-        expired = [k for k, v in self._entries.items() if v.expires_at < now]
-        for key in expired:
-            del self._entries[key]
-        if expired:
-            logger.debug("Cleaned up %d expired cache entries", len(expired))
+        pass
 
     def _maybe_cleanup(self) -> None:
         """Run ``_cleanup_expired`` at most once per cleanup interval."""
-        now = time.monotonic()
-        if now - self._last_cleanup > _CLEANUP_INTERVAL:
-            self._cleanup_expired()
-            self._last_cleanup = now
+        pass
 
     def _enforce_size_limit(self) -> None:
         """Ensure there is room for at least one new entry."""
-        if len(self._entries) < self._max_size:
-            return
-        self._cleanup_expired()
-        if len(self._entries) >= self._max_size:
-            oldest_key = next(iter(self._entries))
-            del self._entries[oldest_key]
+        pass

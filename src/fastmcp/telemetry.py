@@ -75,8 +75,7 @@ def inject_trace_context(
 
 def record_span_error(span: Span, exception: BaseException) -> None:
     """Record an exception on a span and set error status."""
-    span.record_exception(exception)
-    span.set_status(Status(StatusCode.ERROR))
+    pass
 
 
 def extract_trace_context(meta: dict[str, Any] | None) -> Context:

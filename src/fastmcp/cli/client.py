@@ -177,52 +177,7 @@ async def _terminal_elicitation_handler(
     Prints the server's message and prompts for each field in the schema.
     The user can type 'decline' or 'cancel' instead of a value to abort.
     """
-    from mcp.types import ElicitRequestFormParams
-
-    console.print(f"\n[bold yellow]Server asks:[/bold yellow] {message}")
-
-    if not isinstance(params, ElicitRequestFormParams):
-        answer = console.input(
-            "[dim](press Enter to accept, or type 'decline'):[/dim] "
-        )
-        if answer.strip().lower() == "decline":
-            return ElicitResult(action="decline")
-        if answer.strip().lower() == "cancel":
-            return ElicitResult(action="cancel")
-        return ElicitResult(action="accept", content={})
-
-    schema = params.requestedSchema
-    properties = schema.get("properties", {})
-    required = set(schema.get("required", []))
-
-    if not properties:
-        answer = console.input(
-            "[dim](press Enter to accept, or type 'decline'):[/dim] "
-        )
-        if answer.strip().lower() == "decline":
-            return ElicitResult(action="decline")
-        if answer.strip().lower() == "cancel":
-            return ElicitResult(action="cancel")
-        return ElicitResult(action="accept", content={})
-
-    result: dict[str, Any] = {}
-    for field_name, field_schema in properties.items():
-        type_hint = field_schema.get("type", "string")
-        req_marker = " [red]*[/red]" if field_name in required else ""
-        prompt_text = f"  [cyan]{field_name}[/cyan] ({type_hint}){req_marker}: "
-
-        raw = console.input(prompt_text)
-        if raw.strip().lower() == "decline":
-            return ElicitResult(action="decline")
-        if raw.strip().lower() == "cancel":
-            return ElicitResult(action="cancel")
-
-        if raw == "" and field_name not in required:
-            continue
-
-        result[field_name] = coerce_value(raw, field_schema)
-
-    return ElicitResult(action="accept", content=result)
+    pass
 
 
 def _build_client(

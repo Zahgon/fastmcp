@@ -141,16 +141,7 @@ class RSAKeyPair:
 
 def _looks_like_pem_public_key(key: str | bytes) -> bool:
     """Return True when key text appears to be PEM-encoded asymmetric key material."""
-    if isinstance(key, bytes):
-        key = key.decode("utf-8", errors="replace")
-    key_text = key.strip()
-    pem_markers = (
-        "-----BEGIN PUBLIC KEY-----",
-        "-----BEGIN RSA PUBLIC KEY-----",
-        "-----BEGIN EC PUBLIC KEY-----",
-        "-----BEGIN CERTIFICATE-----",
-    )
-    return any(marker in key_text for marker in pem_markers)
+    pass
 
 
 class JWTVerifier(TokenVerifier):
@@ -278,104 +269,15 @@ class JWTVerifier(TokenVerifier):
 
     async def _get_verification_key(self, token: str) -> str | bytes:
         """Get the verification key for the token."""
-        if self.public_key:
-            return self.public_key
-
-        # Extract kid from token header for JWKS lookup
-        try:
-            header = decode_jwt_header(token)
-            kid = header.get("kid")
-            return await self._get_jwks_key(kid)
-
-        except (ValueError, KeyError, IndexError, json.JSONDecodeError) as e:
-            raise ValueError(f"Failed to extract key ID from token: {e}") from e
+        pass
 
     async def _get_jwks_key(self, kid: str | None) -> str:
         """Fetch key from JWKS with simple caching and SSRF protection."""
-        if not self.jwks_uri:
-            raise ValueError("JWKS URI not configured")
-
-        current_time = time.time()
-
-        # Check cache first
-        if current_time - self._jwks_cache_time < self._cache_ttl:
-            if kid and kid in self._jwks_cache:
-                return self._jwks_cache[kid]
-            elif not kid and len(self._jwks_cache) == 1:
-                # If no kid but only one key cached, use it
-                return next(iter(self._jwks_cache.values()))
-
-        # Fetch JWKS — with SSRF protection when enabled (untrusted URIs)
-        try:
-            jwks_data = await self._fetch_jwks()
-
-            # Cache all keys
-            self._jwks_cache = {}
-            for key_data in jwks_data.get("keys", []):
-                key_kid = key_data.get("kid")
-                jwk = JsonWebKey.import_key(key_data)
-                public_key = jwk.get_public_key()
-
-                if key_kid:
-                    self._jwks_cache[key_kid] = public_key
-                else:
-                    # Key without kid - use a default identifier
-                    self._jwks_cache["_default"] = public_key
-
-            self._jwks_cache_time = current_time
-
-            # Select the appropriate key
-            if kid:
-                if kid not in self._jwks_cache:
-                    self.logger.debug(
-                        "JWKS key lookup failed: key ID '%s' not found", kid
-                    )
-                    raise ValueError(f"Key ID '{kid}' not found in JWKS")
-                return self._jwks_cache[kid]
-            else:
-                # No kid in token - only allow if there's exactly one key
-                if len(self._jwks_cache) == 1:
-                    return next(iter(self._jwks_cache.values()))
-                elif len(self._jwks_cache) > 1:
-                    raise ValueError(
-                        "Multiple keys in JWKS but no key ID (kid) in token"
-                    )
-                else:
-                    raise ValueError("No keys found in JWKS")
-
-        except (SSRFError, SSRFFetchError) as e:
-            self.logger.debug("JWKS fetch blocked by SSRF protection: %s", e)
-            raise ValueError(f"Failed to fetch JWKS: {e}") from e
-        except httpx.HTTPError as e:
-            raise ValueError(f"Failed to fetch JWKS: {e}") from e
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JWKS JSON: {e}") from e
-        except (JoseError, TypeError, KeyError) as e:
-            self.logger.debug("JWKS key processing failed: %s", e)
-            raise ValueError(f"Failed to process JWKS: {e}") from e
+        pass
 
     async def _fetch_jwks(self) -> dict[str, Any]:
         """Fetch JWKS data, using SSRF-safe or standard fetch based on config."""
-        if not self.jwks_uri:
-            raise ValueError("JWKS URI not configured")
-
-        if self.ssrf_safe:
-            content = await ssrf_safe_fetch(
-                self.jwks_uri,
-                max_size=65536,
-                timeout=10.0,
-                overall_timeout=30.0,
-            )
-            return json.loads(content)
-        else:
-            async with (
-                contextlib.nullcontext(self._http_client)
-                if self._http_client is not None
-                else httpx.AsyncClient(timeout=httpx.Timeout(10.0))
-            ) as client:
-                response = await client.get(self.jwks_uri)
-                response.raise_for_status()
-                return response.json()
+        pass
 
     def _extract_scopes(self, claims: dict[str, Any]) -> list[str]:
         """
@@ -385,14 +287,7 @@ class JWTVerifier(TokenVerifier):
         Checks the `scope` claim first (standard OAuth2 claim), then the `scp`
         claim (used by some Identity Providers).
         """
-        for claim in ["scope", "scp"]:
-            if claim in claims:
-                if isinstance(claims[claim], str):
-                    return claims[claim].split()
-                elif isinstance(claims[claim], list):
-                    return claims[claim]
-
-        return []
+        pass
 
     async def load_access_token(self, token: str) -> AccessToken | None:
         """
@@ -404,121 +299,7 @@ class JWTVerifier(TokenVerifier):
         Returns:
             AccessToken | None: An AccessToken populated from token claims if the token is valid; `None` if the token is expired, has an invalid signature or format, fails issuer/audience/scope validation, or any other validation error occurs.
         """
-        try:
-            # Get verification key (static or from JWKS)
-            verification_key = await self._get_verification_key(token)
-
-            # Decode and verify the JWT token
-            claims = self.jwt.decode(token, verification_key)
-
-            # Extract client ID early for logging
-            client_id = (
-                claims.get("client_id")
-                or claims.get("azp")
-                or claims.get("sub")
-                or "unknown"
-            )
-
-            # Validate expiration. Kept at INFO (not WARNING like issuer/
-            # audience/scope mismatches below) — expiry is expected-path noise
-            # from normal token rotation, not a configuration error worth
-            # surfacing by default.
-            exp = claims.get("exp")
-            if exp is not None and exp < time.time():
-                self.logger.info(
-                    "Bearer token rejected for client %s: token expired",
-                    client_id,
-                )
-                return None
-
-            # Validate issuer - note we use issuer instead of issuer_url here because
-            # issuer is optional, allowing users to make this check optional
-            if self.issuer:
-                iss = claims.get("iss")
-
-                # Handle different combinations of issuer types
-                issuer_valid = False
-                if isinstance(self.issuer, list):
-                    # self.issuer is a list - check if token issuer matches any expected issuer
-                    issuer_valid = iss in self.issuer
-                else:
-                    # self.issuer is a string - check for equality
-                    issuer_valid = iss == self.issuer
-
-                if not issuer_valid:
-                    self.logger.warning(
-                        "Bearer token rejected for client %s: issuer mismatch "
-                        "(got %r, expected %r)",
-                        client_id,
-                        iss,
-                        self.issuer,
-                    )
-                    return None
-
-            # Validate audience if configured
-            if self.audience:
-                aud = claims.get("aud")
-
-                # Handle different combinations of audience types
-                audience_valid = False
-                if isinstance(self.audience, list):
-                    # self.audience is a list - check if any expected audience is present
-                    if isinstance(aud, list):
-                        # Both are lists - check for intersection
-                        audience_valid = any(
-                            expected in aud for expected in self.audience
-                        )
-                    else:
-                        # aud is a string - check if it's in our expected list
-                        audience_valid = aud in cast(list, self.audience)
-                else:
-                    # self.audience is a string - use original logic
-                    if isinstance(aud, list):
-                        audience_valid = self.audience in aud
-                    else:
-                        audience_valid = aud == self.audience
-
-                if not audience_valid:
-                    self.logger.warning(
-                        "Bearer token rejected for client %s: audience mismatch "
-                        "(got %r, expected %r)",
-                        client_id,
-                        aud,
-                        self.audience,
-                    )
-                    return None
-
-            # Extract scopes
-            scopes = self._extract_scopes(claims)
-
-            # Check required scopes
-            if self.required_scopes:
-                token_scopes = set(scopes)
-                required_scopes = set(self.required_scopes)
-                if not required_scopes.issubset(token_scopes):
-                    self.logger.warning(
-                        "Bearer token rejected for client %s: missing required "
-                        "scopes (has %s, requires %s)",
-                        client_id,
-                        sorted(token_scopes),
-                        sorted(required_scopes),
-                    )
-                    return None
-
-            return AccessToken(
-                token=token,
-                client_id=str(client_id),
-                scopes=scopes,
-                expires_at=int(exp) if exp is not None else None,
-                claims=claims,
-            )
-
-        except JoseError:
-            self.logger.debug("Token validation failed: JWT signature/format invalid")
-            return None
-        except (ValueError, TypeError, KeyError, AttributeError) as e:
-            self.logger.debug("Token validation failed: %s", str(e))
-            return None
+        pass
 
     async def verify_token(self, token: str) -> AccessToken | None:
         """
@@ -533,7 +314,7 @@ class JWTVerifier(TokenVerifier):
         Returns:
             AccessToken object if valid, None if invalid or expired
         """
-        return await self.load_access_token(token)
+        pass
 
 
 class StaticTokenVerifier(TokenVerifier):
@@ -572,31 +353,4 @@ class StaticTokenVerifier(TokenVerifier):
 
     async def verify_token(self, token: str) -> AccessToken | None:
         """Verify token against static token dictionary."""
-        token_data = self.tokens.get(token)
-        if not token_data:
-            return None
-
-        # Check expiration if present
-        expires_at = token_data.get("expires_at")
-        if expires_at is not None and expires_at < time.time():
-            return None
-
-        scopes = token_data.get("scopes", [])
-
-        # Check required scopes
-        if self.required_scopes:
-            token_scopes = set(scopes)
-            required_scopes = set(self.required_scopes)
-            if not required_scopes.issubset(token_scopes):
-                logger.debug(
-                    f"Token missing required scopes. Has: {token_scopes}, Required: {required_scopes}"
-                )
-                return None
-
-        return AccessToken(
-            token=token,
-            client_id=token_data["client_id"],
-            scopes=scopes,
-            expires_at=expires_at,
-            claims=token_data,
-        )
+        pass

@@ -40,12 +40,7 @@ class CallToolRequestResult(CallToolResult):
         """
         Create a CallToolRequestResult from a CallToolResult.
         """
-        return cls(
-            tool=tool,
-            arguments=arguments,
-            isError=result.isError,
-            content=result.content,
-        )
+        pass
 
 
 class BulkToolCaller(MCPMixin):
@@ -77,17 +72,7 @@ class BulkToolCaller(MCPMixin):
          be for a different tool and can include different arguments. Useful for speeding up
          what would otherwise take several individual tool calls.
         """
-        results = []
-
-        for tool_call in tool_calls:
-            result = await self._call_tool(tool_call.tool, tool_call.arguments)
-
-            results.append(result)
-
-            if result.isError and not continue_on_error:
-                return results
-
-        return results
+        pass
 
     @mcp_tool()
     async def call_tool_bulk(
@@ -105,17 +90,7 @@ class BulkToolCaller(MCPMixin):
             tool: The name of the tool to call.
             tool_arguments: A list of dictionaries, where each dictionary contains the arguments for an individual run of the tool.
         """
-        results = []
-
-        for tool_call_arguments in tool_arguments:
-            result = await self._call_tool(tool, tool_call_arguments)
-
-            results.append(result)
-
-            if result.isError and not continue_on_error:
-                return results
-
-        return results
+        pass
 
     async def _call_tool(
         self, tool: str, arguments: dict[str, Any]
@@ -123,29 +98,4 @@ class BulkToolCaller(MCPMixin):
         """
         Helper method to call a tool with the provided arguments.
         """
-
-        if tool in self._BULK_TOOL_NAMES:
-            return CallToolRequestResult(
-                tool=tool,
-                arguments=arguments,
-                isError=True,
-                content=[
-                    TextContent(
-                        type="text",
-                        text=(
-                            "BulkToolCaller cannot call itself. "
-                            "The tools 'call_tools_bulk' and 'call_tool_bulk' are disallowed."
-                        ),
-                    )
-                ],
-            )
-
-        async with Client(self.connection) as client:
-            result = await client.call_tool_mcp(name=tool, arguments=arguments)
-
-            return CallToolRequestResult(
-                tool=tool,
-                arguments=arguments,
-                isError=result.isError,
-                content=result.content,
-            )
+        pass

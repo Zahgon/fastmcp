@@ -45,19 +45,12 @@ class DiscoveredServer:
     @property
     def qualified_name(self) -> str:
         """Fully qualified ``source:name`` identifier."""
-        return f"{self.source}:{self.name}"
+        pass
 
     @property
     def transport_summary(self) -> str:
         """Human-readable one-liner describing the transport."""
-        cfg = self.config
-        if isinstance(cfg, StdioMCPServer):
-            parts = [cfg.command, *cfg.args]
-            return f"stdio: {' '.join(parts)}"
-        if isinstance(cfg, RemoteMCPServer):
-            transport = cfg.transport or "http"
-            return f"{transport}: {cfg.url}"
-        return str(type(cfg).__name__)
+        pass
 
 
 # ---------------------------------------------------------------------------

@@ -65,7 +65,7 @@ class _WrappedProvider(Provider):
 
     async def get_app_tool(self, app_name: str, tool_name: str) -> Tool | None:
         """Delegate to inner, bypassing this wrapper's transforms."""
-        return await self._inner.get_app_tool(app_name, tool_name)
+        pass
 
     async def get_tool_by_hash(self, tool_hash: str, tool_name: str) -> Tool | None:
         """Delegate to inner, bypassing this wrapper's transforms."""

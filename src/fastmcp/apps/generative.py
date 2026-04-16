@@ -115,16 +115,7 @@ class GenerativeUI(Provider):
             code: str,
             data: str | dict[str, Any] | None = None,
         ) -> PrefabApp:
-            parsed_data: dict[str, Any] | None
-            if isinstance(data, str):
-                parsed_data = json.loads(data) if data.strip() else None
-            else:
-                parsed_data = data
-            return await _gen.execute(
-                code,
-                data=parsed_data,
-                sandbox=sandbox_ref._get_sandbox(),
-            )
+            pass
 
         tool = Tool.from_function(
             generate_ui,

@@ -20,17 +20,17 @@ class Sample(MCPMixin):
     @mcp_tool()
     def first_tool(self):
         """First tool description."""
-        return f"Executed tool {self.name}."
+        pass
 
     @mcp_resource(uri="test://test")
     def first_resource(self):
         """First resource description."""
-        return f"Executed resource {self.name}."
+        pass
 
     @mcp_prompt()
     def first_prompt(self):
         """First prompt description."""
-        return f"here's a prompt! {self.name}."
+        pass
 
 
 first_sample = Sample("First")

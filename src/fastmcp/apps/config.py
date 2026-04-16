@@ -132,42 +132,12 @@ class PrefabAppConfig(AppConfig):
 
     def model_post_init(self, __context: Any) -> None:
         # Set the renderer URI if not explicitly overridden
-        if self.resource_uri is None:
-            self.resource_uri = "ui://prefab/renderer.html"
-
-        # Merge renderer CSP with user-provided CSP
-        try:
-            from prefab_ui.renderer import get_renderer_csp
-
-            renderer_csp = get_renderer_csp()
-        except ImportError:
-            renderer_csp = {}
-
-        if renderer_csp:
-            user_csp = self.csp or ResourceCSP()
-            # Start from the user's CSP (preserves model_extra for
-            # forward-compat directives), then merge renderer domains.
-            merged_data = user_csp.model_dump(exclude_none=True)
-            merged_data["connect_domains"] = _merge_domains(
-                renderer_csp.get("connect_domains"),
-                user_csp.connect_domains,
-            )
-            merged_data["resource_domains"] = _merge_domains(
-                renderer_csp.get("resource_domains"),
-                user_csp.resource_domains,
-            )
-            self.csp = ResourceCSP(**merged_data)
+        pass
 
 
 def _merge_domains(base: list[str] | None, extra: list[str] | None) -> list[str] | None:
     """Merge two domain lists, deduplicating."""
-    if base is None and extra is None:
-        return None
-    combined = list(base or [])
-    for d in extra or []:
-        if d not in combined:
-            combined.append(d)
-    return combined or None
+    pass
 
 
 def app_config_to_meta_dict(app: AppConfig | dict[str, Any]) -> dict[str, Any]:

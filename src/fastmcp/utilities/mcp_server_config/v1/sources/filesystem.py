@@ -32,16 +32,7 @@ class FileSystemSource(Source):
         This validator runs before the model is created, allowing us to
         handle the "file.py:object" syntax at the model boundary.
         """
-        if isinstance(v, str) and ":" in v:
-            # Check if it's a Windows path (e.g., C:\...)
-            has_windows_drive = len(v) > 1 and v[1] == ":"
-
-            # Only split if colon is not part of Windows drive
-            if ":" in (v[2:] if has_windows_drive else v):
-                # This path has an object specification
-                # We'll handle it in __init__ by setting entrypoint
-                return v
-        return v
+        pass
 
     def __init__(self, **data: Any) -> None:
         """Initialize FileSystemSource, handling path:object syntax."""

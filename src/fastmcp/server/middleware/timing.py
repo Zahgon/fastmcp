@@ -38,23 +38,7 @@ class TimingMiddleware(Middleware):
 
     async def on_request(self, context: MiddlewareContext, call_next: CallNext) -> Any:
         """Time request execution and log the results."""
-        method = context.method or "unknown"
-
-        start_time = time.perf_counter()
-        try:
-            result = await call_next(context)
-            duration_ms = (time.perf_counter() - start_time) * 1000
-            self.logger.log(
-                self.log_level, f"Request {method} completed in {duration_ms:.2f}ms"
-            )
-            return result
-        except Exception as e:
-            duration_ms = (time.perf_counter() - start_time) * 1000
-            self.logger.log(
-                self.log_level,
-                f"Request {method} failed after {duration_ms:.2f}ms: {e}",
-            )
-            raise
+        pass
 
 
 class DetailedTimingMiddleware(Middleware):
@@ -92,65 +76,46 @@ class DetailedTimingMiddleware(Middleware):
         self, context: MiddlewareContext, call_next: CallNext, operation_name: str
     ) -> Any:
         """Helper method to time any operation."""
-        start_time = time.perf_counter()
-        try:
-            result = await call_next(context)
-            duration_ms = (time.perf_counter() - start_time) * 1000
-            self.logger.log(
-                self.log_level, f"{operation_name} completed in {duration_ms:.2f}ms"
-            )
-            return result
-        except Exception as e:
-            duration_ms = (time.perf_counter() - start_time) * 1000
-            self.logger.log(
-                self.log_level,
-                f"{operation_name} failed after {duration_ms:.2f}ms: {e}",
-            )
-            raise
+        pass
 
     async def on_call_tool(
         self, context: MiddlewareContext, call_next: CallNext
     ) -> Any:
         """Time tool execution."""
-        tool_name = getattr(context.message, "name", "unknown")
-        return await self._time_operation(context, call_next, f"Tool '{tool_name}'")
+        pass
 
     async def on_read_resource(
         self, context: MiddlewareContext, call_next: CallNext
     ) -> Any:
         """Time resource reading."""
-        resource_uri = getattr(context.message, "uri", "unknown")
-        return await self._time_operation(
-            context, call_next, f"Resource '{resource_uri}'"
-        )
+        pass
 
     async def on_get_prompt(
         self, context: MiddlewareContext, call_next: CallNext
     ) -> Any:
         """Time prompt retrieval."""
-        prompt_name = getattr(context.message, "name", "unknown")
-        return await self._time_operation(context, call_next, f"Prompt '{prompt_name}'")
+        pass
 
     async def on_list_tools(
         self, context: MiddlewareContext, call_next: CallNext
     ) -> Any:
         """Time tool listing."""
-        return await self._time_operation(context, call_next, "List tools")
+        pass
 
     async def on_list_resources(
         self, context: MiddlewareContext, call_next: CallNext
     ) -> Any:
         """Time resource listing."""
-        return await self._time_operation(context, call_next, "List resources")
+        pass
 
     async def on_list_resource_templates(
         self, context: MiddlewareContext, call_next: CallNext
     ) -> Any:
         """Time resource template listing."""
-        return await self._time_operation(context, call_next, "List resource templates")
+        pass
 
     async def on_list_prompts(
         self, context: MiddlewareContext, call_next: CallNext
     ) -> Any:
         """Time prompt listing."""
-        return await self._time_operation(context, call_next, "List prompts")
+        pass

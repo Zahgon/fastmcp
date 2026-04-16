@@ -26,8 +26,7 @@ class DereferenceRefsMiddleware(Middleware):
         context: MiddlewareContext[mt.ListToolsRequest],
         call_next: CallNext[mt.ListToolsRequest, Sequence[Tool]],
     ) -> Sequence[Tool]:
-        tools = await call_next(context)
-        return [_dereference_tool(tool) for tool in tools]
+        pass
 
     @override
     async def on_list_resource_templates(
@@ -37,42 +36,19 @@ class DereferenceRefsMiddleware(Middleware):
             mt.ListResourceTemplatesRequest, Sequence[ResourceTemplate]
         ],
     ) -> Sequence[ResourceTemplate]:
-        templates = await call_next(context)
-        return [_dereference_resource_template(t) for t in templates]
+        pass
 
 
 def _dereference_tool(tool: Tool) -> Tool:
     """Return a copy of the tool with dereferenced schemas."""
-    updates: dict[str, object] = {}
-    if "$defs" in tool.parameters or _has_ref(tool.parameters):
-        updates["parameters"] = dereference_refs(tool.parameters)
-    if tool.output_schema is not None and (
-        "$defs" in tool.output_schema or _has_ref(tool.output_schema)
-    ):
-        updates["output_schema"] = dereference_refs(tool.output_schema)
-    if updates:
-        return tool.model_copy(update=updates)
-    return tool
+    pass
 
 
 def _dereference_resource_template(template: ResourceTemplate) -> ResourceTemplate:
     """Return a copy of the template with dereferenced schemas."""
-    if "$defs" in template.parameters or _has_ref(template.parameters):
-        return template.model_copy(
-            update={"parameters": dereference_refs(template.parameters)}
-        )
-    return template
+    pass
 
 
 def _has_ref(schema: dict[str, Any]) -> bool:
     """Check if a schema contains any $ref."""
-    if "$ref" in schema:
-        return True
-    for value in schema.values():
-        if isinstance(value, dict) and _has_ref(value):
-            return True
-        if isinstance(value, list):
-            for item in value:
-                if isinstance(item, dict) and _has_ref(item):
-                    return True
-    return False
+    pass

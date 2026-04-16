@@ -102,57 +102,11 @@ class FileSystemProvider(LocalProvider):
 
     def _load_components(self) -> None:
         """Discover and register all components from the filesystem."""
-        # Clear existing components if reloading
-        if self._loaded:
-            self._components.clear()
-
-        result = discover_and_import(self._root)
-
-        # Log warnings for failed files (only once per file version)
-        for file_path, error in result.failed_files.items():
-            try:
-                current_mtime = file_path.stat().st_mtime
-            except OSError:
-                current_mtime = 0.0
-
-            # Warn if we haven't warned about this file, or if it changed
-            last_warned_mtime = self._warned_files.get(file_path)
-            if last_warned_mtime is None or last_warned_mtime != current_mtime:
-                logger.warning(f"Failed to import {file_path}: {error}")
-                self._warned_files[file_path] = current_mtime
-
-        # Clear warnings for files that now import successfully
-        successful_files = {fp for fp, _ in result.components}
-        for fp in successful_files:
-            self._warned_files.pop(fp, None)
-
-        for file_path, component in result.components:
-            try:
-                self._register_component(component)
-            except Exception:
-                logger.exception(
-                    "Failed to register %s from %s",
-                    getattr(component, "name", repr(component)),
-                    file_path,
-                )
-
-        self._loaded = True
-        logger.debug(
-            f"FileSystemProvider loaded {len(self._components)} components from {self._root}"
-        )
+        pass
 
     def _register_component(self, component: FastMCPComponent) -> None:
         """Register a single component based on its type."""
-        if isinstance(component, Tool):
-            self.add_tool(component)
-        elif isinstance(component, ResourceTemplate):
-            self.add_template(component)
-        elif isinstance(component, Resource):
-            self.add_resource(component)
-        elif isinstance(component, Prompt):
-            self.add_prompt(component)
-        else:
-            logger.debug("Ignoring unknown component type: %r", type(component))
+        pass
 
     async def _ensure_loaded(self) -> None:
         """Ensure components are loaded, reloading if in reload mode.

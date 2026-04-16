@@ -93,29 +93,6 @@ def _make_endpoint(server: FastMCP, component_type: str, action: str):
 
     async def endpoint(request: Request) -> JSONResponse:
         # Get name from path params (tools/prompts use 'name', resources use 'uri')
-        name = request.path_params.get("name") or request.path_params.get("uri")
-        version = request.query_params.get("version")
-
-        # Map component type to components list
-        # Note: "resource" in the route can refer to either a resource or template
-        # We need to check if it's a template (contains {}) and use "template" if so
-        if component_type == "resource" and name is not None and "{" in name:
-            components = ["template"]
-        elif component_type == "resource":
-            components = ["resource"]
-        else:
-            component_map = {
-                "tool": ["tool"],
-                "prompt": ["prompt"],
-            }
-            components = component_map[component_type]
-
-        # Call server.enable() or server.disable()
-        method = getattr(server, action)
-        method(names={name} if name else None, version=version, components=components)
-
-        return JSONResponse(
-            {"message": f"{action.capitalize()}d {component_type}: {name}"}
-        )
+        pass
 
     return endpoint

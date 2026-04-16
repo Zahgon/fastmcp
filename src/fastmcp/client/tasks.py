@@ -32,13 +32,7 @@ class TaskNotificationHandler(MessageHandler):
 
     async def dispatch(self, message: Message) -> None:
         """Dispatch messages, including task status notifications."""
-        if isinstance(message, mcp.types.ServerNotification):
-            if isinstance(message.root, TaskStatusNotification):
-                client = self._client_ref()
-                if client:
-                    client._handle_task_status_notification(message.root)
-
-        await super().dispatch(message)
+        pass
 
 
 TaskResultT = TypeVar("TaskResultT")
@@ -104,7 +98,7 @@ class Task(abc.ABC, Generic[TaskResultT]):
     @property
     def task_id(self) -> str:
         """Get the task ID."""
-        return self._task_id
+        pass
 
     @property
     def returned_immediately(self) -> bool:
@@ -114,7 +108,7 @@ class Task(abc.ABC, Generic[TaskResultT]):
             True if server executed synchronously (graceful degradation or no task support)
             False if server accepted background execution
         """
-        return self._is_immediate
+        pass
 
     def _handle_status_notification(self, status: GetTaskResult) -> None:
         """Process incoming notifications/tasks/status (internal).
@@ -125,22 +119,7 @@ class Task(abc.ABC, Generic[TaskResultT]):
         Args:
             status: Task status from notification
         """
-        # Update cache for next status() call
-        self._status_cache = status
-
-        # Wake up any wait() calls
-        if self._status_event is not None:
-            self._status_event.set()
-
-        # Invoke user callbacks
-        for callback in self._status_callbacks:
-            try:
-                result = callback(status)
-                if inspect.isawaitable(result):
-                    # Fire and forget async callbacks
-                    asyncio.create_task(result)  # type: ignore[arg-type] # noqa: RUF006  # ty:ignore[invalid-argument-type]
-            except Exception as e:
-                logger.warning(f"Task callback error: {e}", exc_info=True)
+        pass
 
     def on_status_change(
         self,
@@ -166,7 +145,7 @@ class Task(abc.ABC, Generic[TaskResultT]):
             >>> task.on_status_change(on_update)
             >>> result = await task  # Callback fires when status changes
         """
-        self._status_callbacks.append(callback)
+        pass
 
     async def status(self) -> GetTaskResult:
         """Get current task status.

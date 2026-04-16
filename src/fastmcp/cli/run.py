@@ -338,7 +338,7 @@ async def run_v1_server_async(
 
 def _watch_filter(_change: Change, path: str) -> bool:
     """Filter for files that should trigger reload."""
-    return any(path.endswith(ext) for ext in WATCHED_EXTENSIONS)
+    pass
 
 
 async def _terminate_process(process: asyncio.subprocess.Process) -> None:
@@ -403,8 +403,7 @@ async def run_with_reload(
     loop = asyncio.get_running_loop()
 
     def signal_handler() -> None:
-        logger.info("Received shutdown signal, stopping...")
-        shutdown_event.set()
+        pass
 
     # Windows doesn't support add_signal_handler
     if sys.platform != "win32":

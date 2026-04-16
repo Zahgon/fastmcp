@@ -106,31 +106,7 @@ class ClientTaskManagementMixin:
             RuntimeError: If client not connected
             McpError: If the request results in a TimeoutError | JSONRPCError
         """
-        # Send protocol request
-        params = PaginatedRequestParams(cursor=cursor, limit=limit)  # type: ignore[call-arg]  # Optional field in MCP SDK  # ty:ignore[unknown-argument]
-        request = ListTasksRequest(params=params)
-        server_response = await self._await_with_session_monitoring(
-            self.session.send_request(
-                request=request,  # type: ignore[invalid-argument-type]  # ty:ignore[invalid-argument-type]
-                result_type=mcp.types.ListTasksResult,
-            )
-        )
-
-        # If server returned tasks, use those
-        if server_response.tasks:
-            return server_response.model_dump(by_alias=True)
-
-        # Server returned empty - fall back to client-side tracking
-        tasks = []
-        for task_id in list(self._submitted_task_ids)[:limit]:
-            try:
-                status = await self.get_task_status(task_id)
-                tasks.append(status.model_dump(by_alias=True))
-            except McpError:
-                # Task may have expired or been deleted, skip it
-                continue
-
-        return {"tasks": tasks, "nextCursor": None}
+        pass
 
     async def cancel_task(self: Client, task_id: str) -> mcp.types.CancelTaskResult:
         """Cancel a task, transitioning it to cancelled state.

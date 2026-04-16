@@ -227,52 +227,12 @@ class SkillProvider(Provider):
 
     def _load_skill(self) -> None:
         """Load and parse the skill directory."""
-        main_file = self._skill_path / self._main_file_name
-
-        if not self._skill_path.exists():
-            raise FileNotFoundError(f"Skill directory not found: {self._skill_path}")
-
-        if not main_file.exists():
-            raise FileNotFoundError(
-                f"Main skill file not found: {main_file}. "
-                f"Expected {self._main_file_name} in {self._skill_path}"
-            )
-
-        content = main_file.read_text()
-        frontmatter, body = parse_frontmatter(content)
-
-        # Get description from frontmatter or first non-empty line
-        description = frontmatter.get("description", "")
-        if not description:
-            for line in body.strip().split("\n"):
-                line = line.strip()
-                if line and not line.startswith("#"):
-                    description = line[:200]
-                    break
-                elif line.startswith("#"):
-                    description = line.lstrip("#").strip()[:200]
-                    break
-
-        # Scan all files in the skill directory
-        files = scan_skill_files(self._skill_path)
-
-        self._skill_info = SkillInfo(
-            name=self._skill_path.name,
-            description=description or f"Skill: {self._skill_path.name}",
-            path=self._skill_path,
-            main_file=self._main_file_name,
-            files=files,
-            frontmatter=frontmatter,
-        )
-
-        logger.debug(f"SkillProvider loaded skill: {self._skill_info.name}")
+        pass
 
     @property
     def skill_info(self) -> SkillInfo:
         """Get the loaded skill info."""
-        if self._skill_info is None:
-            raise RuntimeError("Skill not loaded")
-        return self._skill_info
+        pass
 
     # -------------------------------------------------------------------------
     # Provider interface implementation

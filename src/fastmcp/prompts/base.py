@@ -170,20 +170,7 @@ class PromptResult(pydantic.BaseModel):
         messages: str | list[Message],
     ) -> list[Message]:
         """Normalize input to list[Message]."""
-        if isinstance(messages, str):
-            return [Message(messages)]
-        if isinstance(messages, list):
-            # Validate all items are Message
-            for i, item in enumerate(messages):
-                if not isinstance(item, Message):
-                    raise TypeError(
-                        f"messages[{i}] must be Message, got {type(item).__name__}. "
-                        f"Use Message({item!r}) to wrap the value."
-                    )
-            return messages
-        raise TypeError(
-            f"messages must be str or list[Message], got {type(messages).__name__}"
-        )
+        pass
 
     def to_mcp_prompt_result(self) -> GetPromptResult:
         """Convert to MCP GetPromptResult."""
@@ -212,25 +199,7 @@ class Prompt(FastMCPComponent):
         **overrides: Any,
     ) -> SDKPrompt:
         """Convert the prompt to an MCP prompt."""
-        arguments = [
-            SDKPromptArgument(
-                name=arg.name,
-                description=arg.description,
-                required=arg.required,
-            )
-            for arg in self.arguments or []
-        ]
-
-        return SDKPrompt(
-            name=overrides.get("name", self.name),
-            description=overrides.get("description", self.description),
-            arguments=arguments,
-            title=overrides.get("title", self.title),
-            icons=overrides.get("icons", self.icons),
-            _meta=overrides.get(  # type: ignore[call-arg]  # _meta is Pydantic alias for meta field
-                "_meta", self.get_meta()
-            ),  # ty:ignore[unknown-argument]
-        )
+        pass
 
     @classmethod
     def from_function(

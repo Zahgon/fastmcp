@@ -130,22 +130,7 @@ class TransportMixin:
                 return JSONResponse({"status": "ok"})
             ```
         """
-
-        def decorator(
-            fn: Callable[[Request], Awaitable[Response]],
-        ) -> Callable[[Request], Awaitable[Response]]:
-            self._additional_http_routes.append(
-                Route(
-                    path,
-                    endpoint=fn,
-                    methods=methods,
-                    name=name,
-                    include_in_schema=include_in_schema,
-                )
-            )
-            return fn
-
-        return decorator
+        pass
 
     def _get_additional_http_routes(self: FastMCP) -> list[BaseRoute]:
         """Get all additional HTTP routes including from mounted servers.

@@ -124,31 +124,13 @@ class CIMDDocument(BaseModel):
     @classmethod
     def validate_auth_method(cls, v: str) -> str:
         """Ensure no shared-secret auth methods are used."""
-        forbidden = {"client_secret_post", "client_secret_basic", "client_secret_jwt"}
-        if v in forbidden:
-            raise ValueError(
-                f"CIMD documents cannot use shared-secret auth methods: {v}. "
-                "Use 'none' or 'private_key_jwt' instead."
-            )
-        return v
+        pass
 
     @field_validator("redirect_uris")
     @classmethod
     def validate_redirect_uris(cls, v: list[str]) -> list[str]:
         """Ensure redirect_uris is non-empty and each entry is a valid URI."""
-        if not v:
-            raise ValueError("CIMD documents must include at least one redirect_uri")
-        for uri in v:
-            if not uri or not uri.strip():
-                raise ValueError("CIMD redirect_uris must be non-empty strings")
-            parsed = urlparse(uri)
-            if not parsed.scheme:
-                raise ValueError(
-                    f"CIMD redirect_uri must have a scheme (e.g. http:// or https://): {uri!r}"
-                )
-            if not parsed.netloc and not uri.startswith("urn:"):
-                raise ValueError(f"CIMD redirect_uri must have a host: {uri!r}")
-        return v
+        pass
 
 
 class CIMDValidationError(Exception):
@@ -476,19 +458,11 @@ class CIMDAssertionValidator:
 
     def _cleanup_expired_jtis(self) -> None:
         """Remove expired JTIs from cache."""
-        now = time.time()
-        expired = [jti for jti, exp in self._jti_cache.items() if exp < now]
-        for jti in expired:
-            del self._jti_cache[jti]
-        if expired:
-            self.logger.debug("Cleaned up %d expired JTIs from cache", len(expired))
+        pass
 
     def _maybe_cleanup(self) -> None:
         """Periodically cleanup expired JTIs to prevent unbounded growth."""
-        now = time.monotonic()
-        if now - self._last_cleanup > self._cleanup_interval:
-            self._cleanup_expired_jtis()
-            self._last_cleanup = now
+        pass
 
     async def validate_assertion(
         self,
@@ -511,110 +485,7 @@ class CIMDAssertionValidator:
         Raises:
             ValueError: If validation fails
         """
-        from fastmcp.server.auth.providers.jwt import JWTVerifier as _JWTVerifier
-
-        # Periodic cleanup of expired JTIs
-        self._maybe_cleanup()
-
-        # 1. Validate CIMD document has key material and get/create verifier
-        if cimd_doc.jwks_uri:
-            jwks_uri_str = str(cimd_doc.jwks_uri)
-            cache_key = f"{jwks_uri_str}|{client_id}|{token_endpoint}"
-            verifier = self._verifier_cache.get(cache_key)
-            if verifier is None:
-                verifier = _JWTVerifier(
-                    jwks_uri=jwks_uri_str,
-                    issuer=client_id,
-                    audience=token_endpoint,
-                    ssrf_safe=True,
-                )
-                if len(self._verifier_cache) >= self._verifier_cache_max_size:
-                    oldest_key = next(iter(self._verifier_cache))
-                    del self._verifier_cache[oldest_key]
-                self._verifier_cache[cache_key] = verifier
-        elif cimd_doc.jwks:
-            # Inline JWKS — no caching since the key is embedded
-            public_key = self._extract_public_key_from_jwks(assertion, cimd_doc.jwks)
-            verifier = _JWTVerifier(
-                public_key=public_key,
-                issuer=client_id,
-                audience=token_endpoint,
-            )
-        else:
-            raise ValueError(
-                "CIMD document must have jwks_uri or jwks for private_key_jwt"
-            )
-
-        # 2. Verify JWT using JWTVerifier (handles signature, exp, iss, aud)
-        access_token = await verifier.load_access_token(assertion)
-        if not access_token:
-            raise ValueError("Invalid JWT assertion")
-
-        claims = access_token.claims
-
-        # 3. Validate assertion lifetime (exp and iat)
-        now = time.time()
-        exp = claims.get("exp")
-        iat = claims.get("iat")
-
-        if not exp:
-            raise ValueError("Assertion must include exp claim")
-
-        # Validate exp is in the future (with small clock skew tolerance)
-        if exp < now - 30:  # 30 second clock skew tolerance
-            raise ValueError("Assertion has expired")
-
-        # If iat is present, validate it and check assertion lifetime
-        if iat:
-            if iat > now + 30:  # 30 second clock skew tolerance
-                raise ValueError("Assertion iat is in the future")
-            if exp - iat > self.MAX_ASSERTION_LIFETIME:
-                raise ValueError(
-                    f"Assertion lifetime too long: {exp - iat}s (max {self.MAX_ASSERTION_LIFETIME}s)"
-                )
-        else:
-            # No iat, enforce max lifetime from now
-            if exp > now + self.MAX_ASSERTION_LIFETIME:
-                raise ValueError(
-                    f"Assertion exp too far in future (max {self.MAX_ASSERTION_LIFETIME}s)"
-                )
-
-        # 4. Additional RFC 7523 validation: sub claim must equal client_id
-        if claims.get("sub") != client_id:
-            raise ValueError(f"Assertion sub claim must be {client_id}")
-
-        # 5. Check jti for replay attacks (RFC 7523 requirement)
-        jti = claims.get("jti")
-        if not jti:
-            raise ValueError("Assertion must include jti claim")
-
-        # Check if JTI was already used (and hasn't expired from cache)
-        if jti in self._jti_cache:
-            cached_exp = self._jti_cache[jti]
-            if cached_exp > now:  # Still valid in cache
-                raise ValueError(f"Assertion replay detected: jti {jti} already used")
-            # Expired in cache, can be reused (clean it up)
-            del self._jti_cache[jti]
-
-        # Add to cache with expiration time
-        # Use the assertion's exp claim so it stays cached until it would expire anyway
-        self._jti_cache[jti] = exp
-
-        # Emergency size limit (shouldn't hit with proper TTL cleanup)
-        if len(self._jti_cache) > self._jti_cache_max_size:
-            self._cleanup_expired_jtis()
-            # If still over limit after cleanup, reject to prevent DoS
-            if len(self._jti_cache) > self._jti_cache_max_size:
-                self.logger.warning(
-                    "JTI cache at max capacity (%d), possible attack",
-                    self._jti_cache_max_size,
-                )
-                raise ValueError("Server overloaded, please retry")
-
-        self.logger.debug(
-            "JWT assertion validated successfully for client %s", client_id
-        )
-        return True
+        pass
 
     def _extract_public_key_from_jwks(self, token: str, jwks: dict) -> str:
         """Extract public key from inline JWKS.
@@ -629,47 +500,7 @@ class CIMDAssertionValidator:
         Raises:
             ValueError: If key cannot be found or extracted
         """
-        import base64
-        import json
-
-        from authlib.jose import JsonWebKey
-
-        # Extract kid from token header
-        try:
-            header_b64 = token.split(".")[0]
-            header_b64 += "=" * (4 - len(header_b64) % 4)  # Add padding
-            header = json.loads(base64.urlsafe_b64decode(header_b64))
-            kid = header.get("kid")
-        except Exception as e:
-            raise ValueError(f"Failed to extract key ID from token: {e}") from e
-
-        # Find matching key in JWKS
-        keys = jwks.get("keys", [])
-        if not keys:
-            raise ValueError("JWKS document contains no keys")
-
-        matching_key = None
-        for key in keys:
-            if kid and key.get("kid") == kid:
-                matching_key = key
-                break
-
-        if not matching_key:
-            # If no kid match, try first key as fallback
-            if len(keys) == 1:
-                matching_key = keys[0]
-                self.logger.warning(
-                    "No matching kid in JWKS, using single available key"
-                )
-            else:
-                raise ValueError(f"No matching key found for kid={kid} in JWKS")
-
-        # Convert JWK to PEM
-        try:
-            jwk = JsonWebKey.import_key(matching_key)
-            return jwk.as_pem().decode("utf-8")
-        except Exception as e:
-            raise ValueError(f"Failed to convert JWK to PEM: {e}") from e
+        pass
 
 
 class CIMDClientManager:
@@ -730,41 +561,7 @@ class CIMDClientManager:
             Return type is left untyped to avoid circular import with oauth_proxy.
             Returns OAuthProxyClient instance or None.
         """
-        if not self.enabled:
-            return None
-
-        try:
-            cimd_doc = await self._fetcher.fetch(client_id_url)
-        except (CIMDFetchError, CIMDValidationError) as e:
-            self.logger.warning("CIMD fetch failed for %s: %s", client_id_url, e)
-            return None
-
-        # Import here to avoid circular dependency
-        from fastmcp.server.auth.oauth_proxy.models import ProxyDCRClient
-
-        # Create synthetic client from CIMD document.
-        # Keep CIMD redirect_uris as strings on the document itself so wildcard
-        # patterns like http://localhost:*/callback remain valid.
-        redirect_uris = None
-        client = ProxyDCRClient(
-            client_id=client_id_url,
-            client_secret=None,
-            redirect_uris=redirect_uris,
-            grant_types=cimd_doc.grant_types,
-            scope=cimd_doc.scope or self.default_scope,
-            token_endpoint_auth_method=cimd_doc.token_endpoint_auth_method,
-            allowed_redirect_uri_patterns=self.allowed_redirect_uri_patterns,
-            client_name=cimd_doc.client_name,
-            cimd_document=cimd_doc,
-            cimd_fetched_at=time.time(),
-        )
-
-        self.logger.debug(
-            "CIMD client resolved: %s (name=%s)",
-            client_id_url,
-            cimd_doc.client_name,
-        )
-        return client
+        pass
 
     async def validate_private_key_jwt(
         self,
@@ -785,13 +582,4 @@ class CIMDClientManager:
         Raises:
             ValueError: If client doesn't have CIMD document or validation fails
         """
-        if not hasattr(client, "cimd_document") or not client.cimd_document:
-            raise ValueError("Client must have CIMD document for private_key_jwt")
-
-        cimd_doc = client.cimd_document
-        if cimd_doc.token_endpoint_auth_method != "private_key_jwt":
-            raise ValueError("CIMD document must specify private_key_jwt auth method")
-
-        return await self._assertion_validator.validate_assertion(
-            assertion, client.client_id, token_endpoint, cimd_doc
-        )
+        pass

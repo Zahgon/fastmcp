@@ -201,11 +201,7 @@ class CatalogTransform(Transform):
                 Defaults to True because this is typically called from a
                 tool handler where list_resources middleware has not yet run.
         """
-        token = self._bypass.set(True)
-        try:
-            return await ctx.fastmcp.list_resources(run_middleware=run_middleware)
-        finally:
-            self._bypass.reset(token)
+        pass
 
     async def get_prompt_catalog(
         self, ctx: Context, *, run_middleware: bool = True
@@ -218,11 +214,7 @@ class CatalogTransform(Transform):
                 Defaults to True because this is typically called from a
                 tool handler where list_prompts middleware has not yet run.
         """
-        token = self._bypass.set(True)
-        try:
-            return await ctx.fastmcp.list_prompts(run_middleware=run_middleware)
-        finally:
-            self._bypass.reset(token)
+        pass
 
     async def get_resource_template_catalog(
         self, ctx: Context, *, run_middleware: bool = True
@@ -236,10 +228,4 @@ class CatalogTransform(Transform):
                 tool handler where list_resource_templates middleware has
                 not yet run.
         """
-        token = self._bypass.set(True)
-        try:
-            return await ctx.fastmcp.list_resource_templates(
-                run_middleware=run_middleware
-            )
-        finally:
-            self._bypass.reset(token)
+        pass

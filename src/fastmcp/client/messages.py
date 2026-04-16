@@ -29,49 +29,7 @@ class MessageHandler:
 
     async def dispatch(self, message: Message) -> None:
         # handle all messages
-        await self.on_message(message)
-
-        match message:
-            # requests
-            case RequestResponder():
-                # handle all requests
-                # TODO(ty): remove when ty supports match statement narrowing
-                await self.on_request(message)  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
-
-                # handle specific requests
-                # TODO(ty): remove type ignores when ty supports match statement narrowing
-                match message.request.root:  # type: ignore[union-attr]  # ty:ignore[unresolved-attribute]
-                    case mcp.types.PingRequest():
-                        await self.on_ping(message.request.root)  # type: ignore[union-attr]  # ty:ignore[unresolved-attribute]
-                    case mcp.types.ListRootsRequest():
-                        await self.on_list_roots(message.request.root)  # type: ignore[union-attr]  # ty:ignore[unresolved-attribute]
-                    case mcp.types.CreateMessageRequest():
-                        await self.on_create_message(message.request.root)  # type: ignore[union-attr]  # ty:ignore[unresolved-attribute]
-
-            # notifications
-            case mcp.types.ServerNotification():
-                # handle all notifications
-                await self.on_notification(message)
-
-                # handle specific notifications
-                match message.root:
-                    case mcp.types.CancelledNotification():
-                        await self.on_cancelled(message.root)
-                    case mcp.types.ProgressNotification():
-                        await self.on_progress(message.root)
-                    case mcp.types.LoggingMessageNotification():
-                        await self.on_logging_message(message.root)
-                    case mcp.types.ToolListChangedNotification():
-                        await self.on_tool_list_changed(message.root)
-                    case mcp.types.ResourceListChangedNotification():
-                        await self.on_resource_list_changed(message.root)
-                    case mcp.types.PromptListChangedNotification():
-                        await self.on_prompt_list_changed(message.root)
-                    case mcp.types.ResourceUpdatedNotification():
-                        await self.on_resource_updated(message.root)
-
-            case Exception():
-                await self.on_exception(message)
+        pass
 
     async def on_message(self, message: Message) -> None:
         pass

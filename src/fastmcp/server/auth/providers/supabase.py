@@ -152,22 +152,7 @@ class SupabaseProvider(RemoteAuthProvider):
 
         async def oauth_authorization_server_metadata(request):
             """Forward Supabase OAuth authorization server metadata with FastMCP customizations."""
-            try:
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(
-                        f"{self.project_url}/{self.auth_route}/.well-known/oauth-authorization-server"
-                    )
-                    response.raise_for_status()
-                    metadata = response.json()
-                    return JSONResponse(metadata)
-            except Exception as e:
-                return JSONResponse(
-                    {
-                        "error": "server_error",
-                        "error_description": f"Failed to fetch Supabase metadata: {e}",
-                    },
-                    status_code=500,
-                )
+            pass
 
         # Add Supabase authorization server metadata forwarding
         routes.append(

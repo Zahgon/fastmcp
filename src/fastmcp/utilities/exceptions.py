@@ -10,23 +10,11 @@ import fastmcp
 
 
 def iter_exc(group: BaseExceptionGroup):
-    for exc in group.exceptions:
-        if isinstance(exc, BaseExceptionGroup):
-            yield from iter_exc(exc)
-        else:
-            yield exc
+    pass
 
 
 def _exception_handler(group: BaseExceptionGroup):
-    for leaf in iter_exc(group):
-        if isinstance(leaf, httpx.ConnectTimeout):
-            raise McpError(
-                error=mcp.types.ErrorData(
-                    code=httpx.codes.REQUEST_TIMEOUT,
-                    message="Timed out while waiting for response.",
-                )
-            )
-        raise leaf
+    pass
 
 
 # this catch handler is used to catch taskgroup exception groups and raise the

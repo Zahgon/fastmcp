@@ -88,7 +88,7 @@ class CallbackResponse:
         return cls(**{k: v for k, v in data.items() if k in cls.__annotations__})
 
     def to_dict(self) -> dict[str, str]:
-        return {k: v for k, v in self.__dict__.items() if v is not None}
+        pass
 
 
 @dataclass
@@ -138,69 +138,7 @@ def create_oauth_callback_server(
 
     async def callback_handler(request: Request):
         """Handle OAuth callback requests with proper HTML responses."""
-        query_params = dict(request.query_params)
-        callback_response = CallbackResponse.from_dict(query_params)
-
-        if callback_response.error:
-            error_desc = callback_response.error_description or "Unknown error"
-
-            # Create user-friendly error messages
-            if callback_response.error == "access_denied":
-                user_message = "Access was denied by the authorization server."
-            else:
-                user_message = f"Authorization failed: {error_desc}"
-
-            # Store error and signal completion if result tracking provided
-            store_result_once(error=RuntimeError(user_message))
-
-            return create_secure_html_response(
-                create_callback_html(
-                    user_message,
-                    is_success=False,
-                ),
-                status_code=400,
-            )
-
-        if not callback_response.code:
-            user_message = "No authorization code was received from the server."
-
-            # Store error and signal completion if result tracking provided
-            store_result_once(error=RuntimeError(user_message))
-
-            return create_secure_html_response(
-                create_callback_html(
-                    user_message,
-                    is_success=False,
-                ),
-                status_code=400,
-            )
-
-        # Check for missing state parameter (indicates OAuth flow issue)
-        if callback_response.state is None:
-            user_message = (
-                "The OAuth server did not return the expected state parameter."
-            )
-
-            # Store error and signal completion if result tracking provided
-            store_result_once(error=RuntimeError(user_message))
-
-            return create_secure_html_response(
-                create_callback_html(
-                    user_message,
-                    is_success=False,
-                ),
-                status_code=400,
-            )
-
-        # Success case - store result and signal completion if result tracking provided
-        store_result_once(
-            code=callback_response.code,
-            state=callback_response.state,
-        )
-
-        return create_secure_html_response(
-            create_callback_html("", is_success=True, server_url=server_url)
-        )
+        pass
 
     app = Starlette(routes=[Route(callback_path, callback_handler)])
 

@@ -60,67 +60,7 @@ class WorkOSTokenVerifier(TokenVerifier):
 
     async def verify_token(self, token: str) -> AccessToken | None:
         """Verify WorkOS OAuth token by calling userinfo endpoint."""
-        try:
-            async with (
-                contextlib.nullcontext(self._http_client)
-                if self._http_client is not None
-                else httpx.AsyncClient(timeout=self.timeout_seconds)
-            ) as client:
-                # Use WorkOS AuthKit userinfo endpoint to validate token
-                response = await client.get(
-                    f"{self.authkit_domain}/oauth2/userinfo",
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "User-Agent": "FastMCP-WorkOS-OAuth",
-                    },
-                )
-
-                if response.status_code != 200:
-                    logger.debug(
-                        "WorkOS token verification failed: %d - %s",
-                        response.status_code,
-                        response.text[:200],
-                    )
-                    return None
-
-                user_data = response.json()
-                token_scopes = (
-                    parse_scopes(user_data.get("scope") or user_data.get("scopes"))
-                    or []
-                )
-
-                if self.required_scopes and not all(
-                    scope in token_scopes for scope in self.required_scopes
-                ):
-                    logger.debug(
-                        "WorkOS token missing required scopes. required=%s actual=%s",
-                        self.required_scopes,
-                        token_scopes,
-                    )
-                    return None
-
-                # Create AccessToken with WorkOS user info
-                return AccessToken(
-                    token=token,
-                    client_id=str(user_data.get("sub", "unknown")),
-                    scopes=token_scopes,
-                    expires_at=None,  # Will be set from token introspection if needed
-                    claims={
-                        "sub": user_data.get("sub"),
-                        "email": user_data.get("email"),
-                        "email_verified": user_data.get("email_verified"),
-                        "name": user_data.get("name"),
-                        "given_name": user_data.get("given_name"),
-                        "family_name": user_data.get("family_name"),
-                    },
-                )
-
-        except httpx.RequestError as e:
-            logger.debug("Failed to verify WorkOS token: %s", e)
-            return None
-        except Exception as e:
-            logger.debug("WorkOS token verification error: %s", e)
-            return None
+        pass
 
 
 class WorkOSProvider(OAuthProxy):
@@ -399,22 +339,7 @@ class AuthKitProvider(RemoteAuthProvider):
 
         async def oauth_authorization_server_metadata(request):
             """Forward AuthKit OAuth authorization server metadata with FastMCP customizations."""
-            try:
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(
-                        f"{self.authkit_domain}/.well-known/oauth-authorization-server"
-                    )
-                    response.raise_for_status()
-                    metadata = response.json()
-                    return JSONResponse(metadata)
-            except Exception as e:
-                return JSONResponse(
-                    {
-                        "error": "server_error",
-                        "error_description": f"Failed to fetch AuthKit metadata: {e}",
-                    },
-                    status_code=500,
-                )
+            pass
 
         # Add AuthKit authorization server metadata forwarding
         routes.append(

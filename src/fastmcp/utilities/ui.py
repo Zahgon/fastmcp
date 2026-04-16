@@ -598,12 +598,7 @@ def create_button_group(buttons: list[tuple[str, str, str]]) -> str:
     Returns:
         HTML for button group
     """
-    buttons_html = "\n".join(
-        f'<button type="submit" name="action" value="{value}" class="{css_class}">{text}</button>'
-        for text, value, css_class in buttons
-    )
-
-    return f'<div class="button-group">{buttons_html}</div>'
+    pass
 
 
 def create_secure_html_response(html: str, status_code: int = 200) -> HTMLResponse:

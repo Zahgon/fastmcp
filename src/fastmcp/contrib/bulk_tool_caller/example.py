@@ -9,7 +9,7 @@ mcp = FastMCP()
 @mcp.tool
 def echo_tool(text: str) -> str:
     """Echo the input text"""
-    return text
+    pass
 
 
 bulk_tool_caller = BulkToolCaller()

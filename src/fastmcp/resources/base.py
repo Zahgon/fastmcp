@@ -102,20 +102,7 @@ class ResourceContent(pydantic.BaseModel):
         Returns:
             TextResourceContents for str content, BlobResourceContents for bytes
         """
-        if isinstance(self.content, str):
-            return mcp.types.TextResourceContents(
-                uri=AnyUrl(uri) if isinstance(uri, str) else uri,
-                text=self.content,
-                mimeType=self.mime_type or "text/plain",
-                _meta=self.meta,  # type: ignore[call-arg]  # _meta is Pydantic alias for meta field  # ty:ignore[unknown-argument]
-            )
-        else:
-            return mcp.types.BlobResourceContents(
-                uri=AnyUrl(uri) if isinstance(uri, str) else uri,
-                blob=base64.b64encode(self.content).decode(),
-                mimeType=self.mime_type or "application/octet-stream",
-                _meta=self.meta,  # type: ignore[call-arg]  # _meta is Pydantic alias for meta field  # ty:ignore[unknown-argument]
-            )
+        pass
 
 
 class ResourceResult(pydantic.BaseModel):
@@ -176,28 +163,7 @@ class ResourceResult(pydantic.BaseModel):
         contents: str | bytes | list[ResourceContent],
     ) -> list[ResourceContent]:
         """Normalize input to list[ResourceContent]."""
-        if isinstance(contents, str):
-            return [ResourceContent(contents)]
-        if isinstance(contents, bytes):
-            return [ResourceContent(contents)]
-        if isinstance(contents, list):
-            # Validate all items are ResourceContent
-            for i, item in enumerate(contents):
-                if not isinstance(item, ResourceContent):
-                    raise TypeError(
-                        f"contents[{i}] must be ResourceContent, got {type(item).__name__}. "
-                        f"Use ResourceContent({item!r}) to wrap the value."
-                    )
-            return contents
-        # Auto-serialize JSON-native types to JSON text
-        if (
-            isinstance(contents, dict | list | tuple | int | float | bool)
-            or contents is None
-        ):
-            return [ResourceContent(json.dumps(contents), mime_type="application/json")]
-        raise TypeError(
-            f"contents must be str, bytes, or list[ResourceContent], got {type(contents).__name__}"
-        )
+        pass
 
     def to_mcp_result(self, uri: AnyUrl | str) -> mcp.types.ReadResourceResult:
         """Convert to MCP ReadResourceResult.
@@ -208,11 +174,7 @@ class ResourceResult(pydantic.BaseModel):
         Returns:
             MCP ReadResourceResult with converted contents
         """
-        mcp_contents = [item.to_mcp_resource_contents(uri) for item in self.contents]
-        return mcp.types.ReadResourceResult(
-            contents=mcp_contents,
-            _meta=self.meta,  # type: ignore[call-arg]  # _meta is Pydantic alias for meta field  # ty:ignore[unknown-argument]
-        )
+        pass
 
 
 class Resource(FastMCPComponent):
@@ -281,20 +243,12 @@ class Resource(FastMCPComponent):
     @classmethod
     def set_default_mime_type(cls, mime_type: str | None) -> str:
         """Set default MIME type if not provided."""
-        if mime_type:
-            return mime_type
-        return "text/plain"
+        pass
 
     @model_validator(mode="after")
     def set_default_name(self) -> Self:
         """Set default name from URI if not provided."""
-        if self.name:
-            pass
-        elif self.uri:
-            self.name = str(self.uri)
-        else:
-            raise ValueError("Either name or uri must be provided")
-        return self
+        pass
 
     async def read(
         self,
@@ -407,19 +361,7 @@ class Resource(FastMCPComponent):
         **overrides: Any,
     ) -> SDKResource:
         """Convert the resource to an SDKResource."""
-
-        return SDKResource(
-            name=overrides.get("name", self.name),
-            uri=overrides.get("uri", self.uri),
-            description=overrides.get("description", self.description),
-            mimeType=overrides.get("mimeType", self.mime_type),
-            title=overrides.get("title", self.title),
-            icons=overrides.get("icons", self.icons),
-            annotations=overrides.get("annotations", self.annotations),
-            _meta=overrides.get(  # type: ignore[call-arg]  # _meta is Pydantic alias for meta field
-                "_meta", self.get_meta()
-            ),  # ty:ignore[unknown-argument]
-        )
+        pass
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(uri={self.uri!r}, name={self.name!r}, description={self.description!r}, tags={self.tags})"

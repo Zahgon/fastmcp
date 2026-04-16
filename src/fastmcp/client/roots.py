@@ -50,7 +50,7 @@ def _create_roots_callback_from_roots(
     async def _roots_callback(
         context: RequestContext[ClientSession, LifespanContextT],
     ) -> mcp.types.ListRootsResult:
-        return mcp.types.ListRootsResult(roots=roots)
+        pass
 
     return _roots_callback
 
@@ -62,17 +62,6 @@ def _create_roots_callback_from_fn(
     async def _roots_callback(
         context: RequestContext[ClientSession, LifespanContextT],
     ) -> mcp.types.ListRootsResult | mcp.types.ErrorData:
-        try:
-            roots = fn(context)
-            if inspect.isawaitable(roots):
-                roots = await roots
-            return mcp.types.ListRootsResult(
-                roots=convert_roots_list(cast(RootsList, roots))
-            )
-        except Exception as e:
-            return mcp.types.ErrorData(
-                code=mcp.types.INTERNAL_ERROR,
-                message=str(e),
-            )
+        pass
 
     return _roots_callback

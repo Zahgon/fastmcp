@@ -52,39 +52,7 @@ class AWSCognitoTokenVerifier(JWTVerifier):
 
     async def verify_token(self, token: str) -> AccessToken | None:
         """Verify token and filter claims to Cognito-specific subset."""
-        access_token = await super().verify_token(token)
-        if not access_token:
-            return None
-
-        # Validate client_id claim (Cognito's equivalent of aud)
-        if self._expected_client_id:
-            token_client_id = access_token.claims.get("client_id")
-            if isinstance(self._expected_client_id, list):
-                valid = token_client_id in self._expected_client_id
-            else:
-                valid = token_client_id == self._expected_client_id
-            if not valid:
-                self.logger.debug(
-                    "Token validation failed: client_id mismatch (expected %s, got %s)",
-                    self._expected_client_id,
-                    token_client_id,
-                )
-                return None
-
-        # Filter claims to Cognito-specific subset
-        cognito_claims = {
-            "sub": access_token.claims.get("sub"),
-            "username": access_token.claims.get("username"),
-            "cognito:groups": access_token.claims.get("cognito:groups", []),
-        }
-
-        return AccessToken(
-            token=access_token.token,
-            client_id=access_token.client_id,
-            scopes=access_token.scopes,
-            expires_at=access_token.expires_at,
-            claims=cognito_claims,
-        )
+        pass
 
 
 class AWSCognitoProvider(OIDCProxy):
@@ -220,10 +188,4 @@ class AWSCognitoProvider(OIDCProxy):
             required_scopes: Optional token verifier required_scopes
             timeout_seconds: HTTP request timeout in seconds
         """
-        return AWSCognitoTokenVerifier(
-            issuer=str(self.oidc_config.issuer),
-            audience=audience or self.client_id,
-            algorithm=algorithm,
-            jwks_uri=str(self.oidc_config.jwks_uri),
-            required_scopes=required_scopes,
-        )
+        pass

@@ -75,48 +75,7 @@ class TokenHandler(_SDKTokenHandler):
 
     async def handle(self, request: Any):
         """Wrap SDK handle() and transform auth error responses."""
-        response = await super().handle(request)
-
-        # Transform 401 unauthorized_client -> invalid_client
-        if response.status_code == 401:
-            try:
-                body = json.loads(response.body)
-                if body.get("error") == "unauthorized_client":
-                    return PydanticJSONResponse(
-                        content=TokenErrorResponse(
-                            error="invalid_client",
-                            error_description=body.get("error_description"),
-                        ),
-                        status_code=401,
-                        headers={
-                            "Cache-Control": "no-store",
-                            "Pragma": "no-cache",
-                        },
-                    )
-            except (json.JSONDecodeError, AttributeError):
-                pass  # Not JSON or unexpected format, return as-is
-
-        # Transform 400 invalid_grant -> 401 for expired/invalid tokens
-        # Per MCP spec: "Invalid or expired tokens MUST receive a HTTP 401 response."
-        if response.status_code == 400:
-            try:
-                body = json.loads(response.body)
-                if body.get("error") == "invalid_grant":
-                    return PydanticJSONResponse(
-                        content=TokenErrorResponse(
-                            error="invalid_grant",
-                            error_description=body.get("error_description"),
-                        ),
-                        status_code=401,
-                        headers={
-                            "Cache-Control": "no-store",
-                            "Pragma": "no-cache",
-                        },
-                    )
-            except (json.JSONDecodeError, AttributeError):
-                pass  # Not JSON or unexpected format, return as-is
-
-        return response
+        pass
 
 
 # Expected assertion type for private_key_jwt
@@ -162,46 +121,7 @@ class PrivateKeyJWTClientAuthenticator(_SDKClientAuthenticator):
         Delegates to SDK for client_secret_basic (Authorization header) and
         client_secret_post (form body) authentication.
         """
-        form_data = await request.form()
-        client_id = form_data.get("client_id")
-
-        # If client_id is not in form data, delegate to SDK
-        # This handles client_secret_basic which sends credentials in Authorization header
-        if not client_id:
-            return await super().authenticate_request(request)
-
-        client = await self.provider.get_client(str(client_id))
-        if not client:
-            raise AuthenticationError("Invalid client_id")
-
-        # Handle private_key_jwt authentication for CIMD clients
-        if client.token_endpoint_auth_method == "private_key_jwt":
-            # Validate assertion parameters
-            assertion_type = form_data.get("client_assertion_type")
-            assertion = form_data.get("client_assertion")
-
-            if assertion_type != JWT_BEARER_ASSERTION_TYPE:
-                raise AuthenticationError(
-                    f"Invalid client_assertion_type: expected {JWT_BEARER_ASSERTION_TYPE}"
-                )
-
-            if not assertion or not isinstance(assertion, str):
-                raise AuthenticationError("Missing client_assertion")
-
-            # Validate the JWT assertion using CIMD manager
-            try:
-                await self._cimd_manager.validate_private_key_jwt(
-                    assertion=assertion,
-                    client=client,
-                    token_endpoint=self._token_endpoint_url,
-                )
-            except ValueError as e:
-                raise AuthenticationError(f"Invalid client assertion: {e}") from e
-
-            return client
-
-        # Delegate to SDK for other authentication methods
-        return await super().authenticate_request(request)
+        pass
 
 
 class AuthProvider(TokenVerifierProtocol):
@@ -319,12 +239,7 @@ class AuthProvider(TokenVerifierProtocol):
         Returns:
             List of well-known discovery routes (typically mounted at root level)
         """
-        all_routes = self.get_routes(mcp_path)
-        return [
-            route
-            for route in all_routes
-            if isinstance(route, Route) and route.path.startswith("/.well-known/")
-        ]
+        pass
 
     def get_middleware(self) -> list:
         """Get HTTP application-level middleware for this auth provider.
@@ -403,7 +318,7 @@ class TokenVerifier(AuthProvider):
         where tokens contain short-form scopes but clients request full URI
         scopes).
         """
-        return self.required_scopes or []
+        pass
 
     async def verify_token(self, token: str) -> AccessToken | None:
         """Verify a bearer token and return access info if valid."""
@@ -467,7 +382,7 @@ class RemoteAuthProvider(AuthProvider):
 
     async def verify_token(self, token: str) -> AccessToken | None:
         """Verify token using the configured token verifier."""
-        return await self.token_verifier.verify_token(token)
+        pass
 
     def get_routes(
         self,
@@ -595,19 +510,7 @@ class MultiAuth(AuthProvider):
         it is logged and treated as a non-match so that remaining sources
         still get a chance to verify the token.
         """
-        for source in self._sources:
-            try:
-                result = await source.verify_token(token)
-                if result is not None:
-                    return result
-            except Exception:
-                logger.debug(
-                    "Token verification failed for %s, trying next source",
-                    type(source).__name__,
-                    exc_info=True,
-                )
-
-        return None
+        pass
 
     def set_mcp_path(self, mcp_path: str | None) -> None:
         """Propagate MCP path to the server and all verifiers."""
@@ -629,9 +532,7 @@ class MultiAuth(AuthProvider):
         This ensures that server-specific well-known route logic (e.g.,
         OAuthProvider's RFC 8414 path-aware discovery) is preserved.
         """
-        if self.server is not None:
-            return self.server.get_well_known_routes(mcp_path)
-        return []
+        pass
 
 
 class OAuthProvider(
@@ -718,7 +619,7 @@ class OAuthProvider(
         Returns:
             AccessToken object if valid, None if invalid or expired
         """
-        return await self.load_access_token(token)
+        pass
 
     def get_routes(
         self,
@@ -819,30 +720,4 @@ class OAuthProvider(
         Returns:
             List of well-known discovery routes
         """
-        routes = super().get_well_known_routes(mcp_path)
-
-        # RFC 8414: If issuer_url has a path, use path-aware discovery
-        if self.issuer_url:
-            parsed = urlparse(str(self.issuer_url))
-            issuer_path = parsed.path.rstrip("/")
-
-            if issuer_path and issuer_path != "/":
-                # Replace /.well-known/oauth-authorization-server with path-aware version
-                new_routes = []
-                for route in routes:
-                    if route.path == "/.well-known/oauth-authorization-server":
-                        new_path = (
-                            f"/.well-known/oauth-authorization-server{issuer_path}"
-                        )
-                        new_routes.append(
-                            Route(
-                                new_path,
-                                endpoint=route.endpoint,
-                                methods=route.methods,
-                            )
-                        )
-                    else:
-                        new_routes.append(route)
-                return new_routes
-
-        return routes
+        pass

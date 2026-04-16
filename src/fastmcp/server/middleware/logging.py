@@ -31,60 +31,16 @@ class BaseLoggingMiddleware(Middleware):
     payload_serializer: Callable[[Any], str] | None
 
     def _serialize_payload(self, context: MiddlewareContext[Any]) -> str:
-        payload: str
-
-        if not self.payload_serializer:
-            payload = default_serializer(context.message)
-        else:
-            try:
-                payload = self.payload_serializer(context.message)
-            except Exception as e:
-                self.logger.warning(
-                    f"Failed to serialize payload due to {e}: {context.type} {context.method} {context.source}."
-                )
-                payload = default_serializer(context.message)
-
-        return payload
+        pass
 
     def _format_message(self, message: dict[str, str | int | float]) -> str:
         """Format a message for logging."""
-        if self.structured_logging:
-            return json.dumps(message)
-        else:
-            return " ".join([f"{k}={v}" for k, v in message.items()])
+        pass
 
     def _create_before_message(
         self, context: MiddlewareContext[Any]
     ) -> dict[str, str | int | float]:
-        message: dict[str, str | int | float] = {
-            "event": context.type + "_start",
-            "method": context.method or "unknown",
-            "source": context.source,
-        }
-
-        if (
-            self.include_payloads
-            or self.include_payload_length
-            or self.estimate_payload_tokens
-        ):
-            payload = self._serialize_payload(context)
-
-            if self.include_payload_length or self.estimate_payload_tokens:
-                payload_length = len(payload)
-                payload_tokens = payload_length // 4
-                if self.estimate_payload_tokens:
-                    message["payload_tokens"] = payload_tokens
-                if self.include_payload_length:
-                    message["payload_length"] = payload_length
-
-            if self.max_payload_length and len(payload) > self.max_payload_length:
-                payload = payload[: self.max_payload_length] + "..."
-
-            if self.include_payloads:
-                message["payload"] = payload
-                message["payload_type"] = type(context.message).__name__
-
-        return message
+        pass
 
     def _create_error_message(
         self,
@@ -92,57 +48,25 @@ class BaseLoggingMiddleware(Middleware):
         start_time: float,
         error: Exception,
     ) -> dict[str, str | int | float]:
-        duration_ms: float = _get_duration_ms(start_time)
-        message = {
-            "event": context.type + "_error",
-            "method": context.method or "unknown",
-            "source": context.source,
-            "duration_ms": duration_ms,
-            "error": str(object=error),
-        }
-        return message
+        pass
 
     def _create_after_message(
         self,
         context: MiddlewareContext[Any],
         start_time: float,
     ) -> dict[str, str | int | float]:
-        duration_ms: float = _get_duration_ms(start_time)
-        message = {
-            "event": context.type + "_success",
-            "method": context.method or "unknown",
-            "source": context.source,
-            "duration_ms": duration_ms,
-        }
-        return message
+        pass
 
     def _log_message(
         self, message: dict[str, str | int | float], log_level: int | None = None
     ):
-        self.logger.log(log_level or self.log_level, self._format_message(message))
+        pass
 
     async def on_message(
         self, context: MiddlewareContext[Any], call_next: CallNext[Any, Any]
     ) -> Any:
         """Log messages for configured methods."""
-
-        if self.methods and context.method not in self.methods:
-            return await call_next(context)
-
-        self._log_message(self._create_before_message(context))
-
-        start_time = time.perf_counter()
-        try:
-            result = await call_next(context)
-
-            self._log_message(self._create_after_message(context, start_time))
-
-            return result
-        except Exception as e:
-            self._log_message(
-                self._create_error_message(context, start_time, e), logging.ERROR
-            )
-            raise
+        pass
 
 
 class LoggingMiddleware(BaseLoggingMiddleware):
@@ -253,4 +177,4 @@ class StructuredLoggingMiddleware(BaseLoggingMiddleware):
 
 
 def _get_duration_ms(start_time: float, /) -> float:
-    return round(number=(time.perf_counter() - start_time) * 1000, ndigits=2)
+    pass

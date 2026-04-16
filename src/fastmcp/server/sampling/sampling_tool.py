@@ -158,40 +158,7 @@ class SamplingTool(FastMCPBaseModel):
             # dispatcher does for direct tool calls.  Without this, an
             # auth-protected tool wrapped as a SamplingTool could be
             # invoked by the LLM during sampling without authorization.
-            if tool.auth is not None:
-                # Late import to avoid circular import with context.py
-                from fastmcp.server.context import _current_transport
-
-                is_stdio = _current_transport.get() == "stdio"
-                if not is_stdio:
-                    token = get_access_token()
-                    ctx = AuthContext(token=token, component=tool)
-                    if not await run_auth_checks(tool.auth, ctx):
-                        raise AuthorizationError(
-                            f"Authorization failed for tool '{tool.name}': "
-                            "insufficient permissions"
-                        )
-
-            result = await tool.run(kwargs)
-            # Unwrap ToolResult - extract the actual value
-            if isinstance(result, ToolResult):
-                # If there's structured_content, use that
-                if result.structured_content is not None:
-                    # Check tool's schema - this is the source of truth
-                    if tool.output_schema and tool.output_schema.get(
-                        "x-fastmcp-wrap-result"
-                    ):
-                        # Tool wraps results: {"result": value} -> value
-                        return result.structured_content.get("result")
-                    else:
-                        # No wrapping: use structured_content directly
-                        return result.structured_content
-                # Otherwise, extract from text content
-                if result.content and len(result.content) > 0:
-                    first_content = result.content[0]
-                    if isinstance(first_content, TextContent):
-                        return first_content.text
-            return result
+            pass
 
         fn = wrapper
 

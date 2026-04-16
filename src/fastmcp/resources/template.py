@@ -141,17 +141,7 @@ def expand_uri_template(uri_template: str, params: dict[str, Any]) -> str:
 
     # Expand {?param1,param2,...} query parameter blocks
     def _expand_query_block(match: re.Match[str]) -> str:
-        names = [n.strip() for n in match.group(1).split(",")]
-        parts = []
-        for name in names:
-            underscored = name.replace("-", "_")
-            if name in params:
-                parts.append(f"{quote(name)}={quote(str(params[name]))}")
-            elif underscored in params:
-                parts.append(f"{quote(name)}={quote(str(params[underscored]))}")
-        if parts:
-            return "?" + "&".join(parts)
-        return ""
+        pass
 
     result = re.sub(r"\{\?([^}]+)\}", _expand_query_block, result)
 
@@ -220,9 +210,7 @@ class ResourceTemplate(FastMCPComponent):
     @classmethod
     def set_default_mime_type(cls, mime_type: str | None) -> str:
         """Set default MIME type if not provided."""
-        if mime_type:
-            return mime_type
-        return "text/plain"
+        pass
 
     def matches(self, uri: str) -> dict[str, Any] | None:
         """Check if URI matches template and extract parameters."""
@@ -314,19 +302,7 @@ class ResourceTemplate(FastMCPComponent):
         **overrides: Any,
     ) -> SDKResourceTemplate:
         """Convert the resource template to an SDKResourceTemplate."""
-
-        return SDKResourceTemplate(
-            name=overrides.get("name", self.name),
-            uriTemplate=overrides.get("uriTemplate", self.uri_template),
-            description=overrides.get("description", self.description),
-            mimeType=overrides.get("mimeType", self.mime_type),
-            title=overrides.get("title", self.title),
-            icons=overrides.get("icons", self.icons),
-            annotations=overrides.get("annotations", self.annotations),
-            _meta=overrides.get(  # type: ignore[call-arg]  # _meta is Pydantic alias for meta field
-                "_meta", self.get_meta()
-            ),  # ty:ignore[unknown-argument]
-        )
+        pass
 
     @classmethod
     def from_mcp_template(cls, mcp_template: SDKResourceTemplate) -> ResourceTemplate:
@@ -434,8 +410,7 @@ class FunctionResourceTemplate(ResourceTemplate):
 
         async def resource_read_fn() -> str | bytes | ResourceResult:
             # Call function and check if result is a coroutine
-            result = await self.read(arguments=params)
-            return result
+            pass
 
         return Resource.from_function(
             fn=resource_read_fn,

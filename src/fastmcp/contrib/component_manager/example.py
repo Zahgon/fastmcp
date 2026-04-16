@@ -50,10 +50,10 @@ mcp.mount(server=mounted, namespace="mo")
 @mcp.resource("resource://greeting")
 def get_greeting() -> str:
     """Provides a simple greeting message."""
-    return "Hello from FastMCP Resources!"
+    pass
 
 
 @mounted.tool("greeting")
 def get_info() -> str:
     """Provides a simple info."""
-    return "You are using component manager contrib module!"
+    pass

@@ -66,93 +66,16 @@ class SSETransport(ClientTransport):
         self.sse_read_timeout = normalize_timeout_to_timedelta(sse_read_timeout)
 
     def _set_auth(self, auth: httpx.Auth | Literal["oauth"] | str | None):
-        resolved: httpx.Auth | None
-        if auth == "oauth":
-            resolved = OAuth(
-                self.url,
-                httpx_client_factory=self.httpx_client_factory
-                or self._make_verify_factory(),
-            )
-        elif isinstance(auth, OAuth):
-            auth._bind(self.url)
-            # Only inject the transport's factory into OAuth if OAuth still
-            # has the bare default — preserve any factory the caller attached
-            if auth.httpx_client_factory is httpx.AsyncClient:
-                factory = self.httpx_client_factory or self._make_verify_factory()
-                if factory is not None:
-                    auth.httpx_client_factory = factory
-            resolved = auth
-        elif isinstance(auth, str):
-            resolved = BearerAuth(auth)
-        else:
-            resolved = auth
-        self.auth: httpx.Auth | None = resolved
+        pass
 
     def _make_verify_factory(self) -> McpHttpClientFactory | None:
-        if self.verify is None:
-            return None
-        verify = self.verify
-
-        def factory(
-            headers: dict[str, str] | None = None,
-            timeout: httpx.Timeout | None = None,
-            auth: httpx.Auth | None = None,
-        ) -> httpx.AsyncClient:
-            if timeout is None:
-                timeout = httpx.Timeout(30.0, read=300.0)
-            kwargs: dict[str, Any] = {
-                "follow_redirects": True,
-                "timeout": timeout,
-                "verify": verify,
-            }
-            if headers is not None:
-                kwargs["headers"] = headers
-            if auth is not None:
-                kwargs["auth"] = auth
-            return httpx.AsyncClient(**kwargs)
-
-        return cast(McpHttpClientFactory, factory)
+        pass
 
     @contextlib.asynccontextmanager
     async def connect_session(
         self, **session_kwargs: Unpack[SessionKwargs]
     ) -> AsyncIterator[ClientSession]:
-        client_kwargs: dict[str, Any] = {}
-
-        # When used in a proxy, forward the inbound request's authorization
-        # header to the upstream server. This is off by default so that a
-        # plain Client used inside a server tool handler doesn't accidentally
-        # leak the caller's credentials to an unrelated remote server.
-        if self.forward_incoming_headers:
-            client_kwargs["headers"] = (
-                get_http_headers(include={"authorization"}) | self.headers
-            )
-        else:
-            client_kwargs["headers"] = dict(self.headers)
-
-        # sse_read_timeout has a default value set, so we can't pass None without overriding it
-        # instead we simply leave the kwarg out if it's not provided
-        if self.sse_read_timeout is not None:
-            client_kwargs["sse_read_timeout"] = self.sse_read_timeout.total_seconds()
-        if session_kwargs.get("read_timeout_seconds") is not None:
-            read_timeout_seconds = cast(
-                datetime.timedelta, session_kwargs.get("read_timeout_seconds")
-            )
-            client_kwargs["timeout"] = read_timeout_seconds.total_seconds()
-
-        if self.httpx_client_factory is not None:
-            client_kwargs["httpx_client_factory"] = self.httpx_client_factory
-        else:
-            verify_factory = self._make_verify_factory()
-            if verify_factory is not None:
-                client_kwargs["httpx_client_factory"] = verify_factory
-
-        async with sse_client(self.url, auth=self.auth, **client_kwargs) as transport:
-            read_stream, write_stream = transport
-            async with ClientSession(
-                read_stream, write_stream, **session_kwargs
-            ) as session:
-                yield session
+        pass
 
     def __repr__(self) -> str:
         return f"<SSETransport(url='{self.url}')>"

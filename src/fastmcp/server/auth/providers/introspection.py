@@ -149,9 +149,7 @@ class IntrospectionTokenVerifier(TokenVerifier):
 
     def _create_basic_auth_header(self) -> str:
         """Create HTTP Basic Auth header value from client credentials."""
-        credentials = f"{self.client_id}:{self.client_secret}"
-        encoded = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
-        return f"Basic {encoded}"
+        pass
 
     def _extract_scopes(self, introspection_response: dict[str, Any]) -> list[str]:
         """
@@ -161,20 +159,7 @@ class IntrospectionTokenVerifier(TokenVerifier):
         - A space-separated string in the 'scope' field
         - An array of strings in the 'scope' field (less common but valid)
         """
-        scope_value = introspection_response.get("scope")
-
-        if scope_value is None:
-            return []
-
-        # Handle string (space-separated) scopes
-        if isinstance(scope_value, str):
-            return [s.strip() for s in scope_value.split() if s.strip()]
-
-        # Handle array of scopes
-        if isinstance(scope_value, list):
-            return [str(s) for s in scope_value if s]
-
-        return []
+        pass
 
     async def verify_token(self, token: str) -> AccessToken | None:
         """
@@ -193,113 +178,4 @@ class IntrospectionTokenVerifier(TokenVerifier):
         Returns:
             AccessToken object if valid and active, None if invalid, inactive, or expired
         """
-        # Check cache first
-        is_cached, cached_result = self._cache.get(token)
-        if is_cached:
-            self.logger.debug("Token introspection cache hit")
-            return cached_result
-
-        try:
-            async with (
-                contextlib.nullcontext(self._http_client)
-                if self._http_client is not None
-                else httpx.AsyncClient(timeout=self.timeout_seconds)
-            ) as client:
-                # Prepare introspection request per RFC 7662
-                # Build request data with token and token_type_hint
-                data = {
-                    "token": token,
-                    "token_type_hint": "access_token",
-                }
-
-                # Build headers
-                headers = {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "Accept": "application/json",
-                }
-
-                # Add client authentication based on method
-                if self.client_auth_method == "client_secret_basic":
-                    headers["Authorization"] = self._create_basic_auth_header()
-                elif self.client_auth_method == "client_secret_post":
-                    data["client_id"] = self.client_id
-                    data["client_secret"] = self.client_secret
-
-                response = await client.post(
-                    self.introspection_url,
-                    data=data,
-                    headers=headers,
-                )
-
-                # Check for HTTP errors - don't cache HTTP errors (may be transient)
-                if response.status_code != 200:
-                    self.logger.debug(
-                        "Token introspection failed: HTTP %d - %s",
-                        response.status_code,
-                        response.text[:200] if response.text else "",
-                    )
-                    return None
-
-                introspection_data = response.json()
-
-                # Check if token is active (required field per RFC 7662)
-                # Don't cache inactive tokens - they may become valid later
-                # (e.g., tokens with future nbf, or propagation delays)
-                if not introspection_data.get("active", False):
-                    self.logger.debug("Token introspection returned active=false")
-                    return None
-
-                # Extract client_id (should be present for active tokens)
-                client_id = introspection_data.get(
-                    "client_id"
-                ) or introspection_data.get("sub", "unknown")
-
-                # Extract expiration time
-                exp = introspection_data.get("exp")
-                if exp:
-                    # Validate expiration (belt and suspenders - server should set active=false)
-                    if exp < time.time():
-                        self.logger.debug(
-                            "Token validation failed: expired token for client %s",
-                            client_id,
-                        )
-                        return None
-
-                # Extract scopes
-                scopes = self._extract_scopes(introspection_data)
-
-                # Check required scopes
-                # Don't cache scope failures - permissions may be updated dynamically
-                if self.required_scopes:
-                    token_scopes = set(scopes)
-                    required_scopes = set(self.required_scopes)
-                    if not required_scopes.issubset(token_scopes):
-                        self.logger.debug(
-                            "Token missing required scopes. Has: %s, Required: %s",
-                            token_scopes,
-                            required_scopes,
-                        )
-                        return None
-
-                # Create AccessToken with introspection response data
-                result = AccessToken(
-                    token=token,
-                    client_id=str(client_id),
-                    scopes=scopes,
-                    expires_at=int(exp) if exp is not None else None,
-                    claims=introspection_data,  # Store full response for extensibility
-                )
-                self._cache.set(token, result)
-                return result
-
-        except httpx.TimeoutException:
-            self.logger.debug(
-                "Token introspection timed out after %d seconds", self.timeout_seconds
-            )
-            return None
-        except httpx.RequestError as e:
-            self.logger.debug("Token introspection request failed: %s", e)
-            return None
-        except Exception as e:
-            self.logger.debug("Token introspection error: %s", e)
-            return None
+        pass

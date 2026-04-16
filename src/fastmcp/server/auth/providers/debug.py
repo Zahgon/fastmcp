@@ -83,32 +83,4 @@ class DebugTokenVerifier(TokenVerifier):
         Returns:
             AccessToken if validation succeeds, None otherwise
         """
-        # Reject empty tokens
-        if not token or not token.strip():
-            logger.debug("Rejecting empty token")
-            return None
-
-        try:
-            # Call validation function and await if result is awaitable
-            result = self.validate(token)
-            if inspect.isawaitable(result):
-                is_valid = await result
-            else:
-                is_valid = result
-
-            if not is_valid:
-                logger.debug("Token validation failed: callable returned False")
-                return None
-
-            # Return valid AccessToken
-            return AccessToken(
-                token=token,
-                client_id=self.client_id,
-                scopes=self.scopes,
-                expires_at=None,  # No expiration
-                claims={"token": token},  # Store original token in claims
-            )
-
-        except Exception as e:
-            logger.debug("Token validation error: %s", e, exc_info=True)
-            return None
+        pass

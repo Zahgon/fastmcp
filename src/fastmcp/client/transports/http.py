@@ -99,52 +99,10 @@ class StreamableHttpTransport(ClientTransport):
         self._get_session_id_cb: Callable[[], str | None] | None = None
 
     def _set_auth(self, auth: httpx.Auth | Literal["oauth"] | str | None):
-        resolved: httpx.Auth | None
-        if auth == "oauth":
-            resolved = OAuth(
-                self.url,
-                httpx_client_factory=self.httpx_client_factory
-                or self._make_verify_factory(),
-            )
-        elif isinstance(auth, OAuth):
-            auth._bind(self.url)
-            # Only inject the transport's factory into OAuth if OAuth still
-            # has the bare default — preserve any factory the caller attached
-            if auth.httpx_client_factory is httpx.AsyncClient:
-                factory = self.httpx_client_factory or self._make_verify_factory()
-                if factory is not None:
-                    auth.httpx_client_factory = factory
-            resolved = auth
-        elif isinstance(auth, str):
-            resolved = BearerAuth(auth)
-        else:
-            resolved = auth
-        self.auth: httpx.Auth | None = resolved
+        pass
 
     def _make_verify_factory(self) -> McpHttpClientFactory | None:
-        if self.verify is None:
-            return None
-        verify = self.verify
-
-        def factory(
-            headers: dict[str, str] | None = None,
-            timeout: httpx.Timeout | None = None,
-            auth: httpx.Auth | None = None,
-        ) -> httpx.AsyncClient:
-            if timeout is None:
-                timeout = httpx.Timeout(30.0, read=300.0)
-            kwargs: dict[str, Any] = {
-                "follow_redirects": True,
-                "timeout": timeout,
-                "verify": verify,
-            }
-            if headers is not None:
-                kwargs["headers"] = headers
-            if auth is not None:
-                kwargs["auth"] = auth
-            return httpx.AsyncClient(**kwargs)
-
-        return cast(McpHttpClientFactory, factory)
+        pass
 
     @contextlib.asynccontextmanager
     async def connect_session(
@@ -154,55 +112,7 @@ class StreamableHttpTransport(ClientTransport):
         # header to the upstream server. This is off by default so that a
         # plain Client used inside a server tool handler doesn't accidentally
         # leak the caller's credentials to an unrelated remote server.
-        if self.forward_incoming_headers:
-            headers = get_http_headers(include={"authorization"}) | self.headers
-        else:
-            headers = dict(self.headers)
-
-        # Configure timeout if provided, preserving MCP's 30s connect default
-        timeout: httpx.Timeout | None = None
-        if session_kwargs.get("read_timeout_seconds") is not None:
-            read_timeout_seconds = cast(
-                datetime.timedelta, session_kwargs.get("read_timeout_seconds")
-            )
-            timeout = httpx.Timeout(30.0, read=read_timeout_seconds.total_seconds())
-
-        # Create httpx client from factory or use default with MCP-appropriate
-        # timeouts. Note: create_mcp_http_client enables follow_redirects, but
-        # httpx automatically strips Authorization headers on cross-origin
-        # redirects to prevent credential leakage.
-        verify_factory = self._make_verify_factory()
-        if self.httpx_client_factory is not None:
-            http_client = self.httpx_client_factory(
-                headers=headers,
-                auth=self.auth,
-                follow_redirects=True,  # type: ignore[call-arg]  # ty:ignore[unknown-argument]
-                **({"timeout": timeout} if timeout else {}),
-            )
-        elif verify_factory is not None:
-            http_client = verify_factory(
-                headers=headers,
-                timeout=timeout,
-                auth=self.auth,
-            )
-        else:
-            http_client = create_mcp_http_client(
-                headers=headers,
-                timeout=timeout,
-                auth=self.auth,
-            )
-
-        # Ensure httpx client is closed after use
-        async with (
-            http_client,
-            streamable_http_client(self.url, http_client=http_client) as transport,
-        ):
-            read_stream, write_stream, get_session_id = transport
-            self._get_session_id_cb = get_session_id
-            async with ClientSession(
-                read_stream, write_stream, **session_kwargs
-            ) as session:
-                yield session
+        pass
 
     def get_session_id(self) -> str | None:
         if self._get_session_id_cb:

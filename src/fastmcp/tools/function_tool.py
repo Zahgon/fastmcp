@@ -474,6 +474,6 @@ def tool(
         raise TypeError(f"Invalid first argument: {type(name_or_fn)}")
 
     def wrapper(fn: F) -> F:
-        return decorator(fn, tool_name)
+        pass
 
     return wrapper

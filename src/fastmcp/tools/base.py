@@ -126,15 +126,7 @@ class ToolResult(BaseModel):
     ) -> (
         list[ContentBlock] | tuple[list[ContentBlock], dict[str, Any]] | CallToolResult
     ):
-        if self.meta is not None:
-            return CallToolResult(
-                structuredContent=self.structured_content,
-                content=self.content,
-                _meta=self.meta,  # type: ignore[call-arg]  # _meta is Pydantic alias for meta field  # ty:ignore[unknown-argument]
-            )
-        if self.structured_content is None:
-            return self.content
-        return self.content, self.structured_content
+        pass
 
 
 class Tool(FastMCPComponent):
@@ -176,8 +168,7 @@ class Tool(FastMCPComponent):
     @model_validator(mode="after")
     def _validate_tool_name(self) -> Tool:
         """Validate tool name according to MCP specification (SEP-986)."""
-        validate_and_warn_tool_name(self.name)
-        return self
+        pass
 
     def to_mcp_tool(
         self,

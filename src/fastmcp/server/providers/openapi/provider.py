@@ -168,17 +168,7 @@ class OpenAPIProvider(Provider):
     @classmethod
     def _create_default_client(cls, openapi_spec: dict[str, Any]) -> httpx.AsyncClient:
         """Create a default httpx client from the OpenAPI spec's server URL."""
-        servers = openapi_spec.get("servers", [])
-        if not servers or not servers[0].get("url"):
-            raise ValueError(
-                "No server URL found in OpenAPI spec. Either add a 'servers' "
-                "entry to the spec or provide an httpx.AsyncClient explicitly."
-            )
-        base_url = servers[0]["url"]
-        variables = servers[0].get("variables", {})
-        for name, var in variables.items():
-            base_url = base_url.replace(f"{{{name}}}", var.get("default", ""))
-        return httpx.AsyncClient(base_url=base_url, timeout=DEFAULT_TIMEOUT)
+        pass
 
     @asynccontextmanager
     async def lifespan(self) -> AsyncIterator[None]:
@@ -193,22 +183,7 @@ class OpenAPIProvider(Provider):
         self, route: HTTPRoute, mcp_names_map: dict[str, str] | None = None
     ) -> str:
         """Generate a default name from the route."""
-        mcp_names_map = mcp_names_map or {}
-
-        if route.operation_id:
-            if route.operation_id in mcp_names_map:
-                name = mcp_names_map[route.operation_id]
-            else:
-                name = route.operation_id.split("__")[0]
-        else:
-            name = route.summary or f"{route.method}_{route.path}"
-
-        name = _slugify(name)
-
-        if len(name) > 56:
-            name = name[:56]
-
-        return name
+        pass
 
     def _get_unique_name(
         self,
@@ -216,15 +191,7 @@ class OpenAPIProvider(Provider):
         component_type: Literal["tool", "resource", "resource_template", "prompt"],
     ) -> str:
         """Ensure the name is unique by appending numbers if needed."""
-        self._used_names[component_type][name] += 1
-        if self._used_names[component_type][name] == 1:
-            return name
-
-        new_name = f"{name}_{self._used_names[component_type][name]}"
-        logger.debug(
-            f"Name collision: '{name}' exists as {component_type}. Using '{new_name}'."
-        )
-        return new_name
+        pass
 
     def _create_openapi_tool(
         self,
@@ -233,50 +200,7 @@ class OpenAPIProvider(Provider):
         tags: set[str],
     ) -> None:
         """Create and register an OpenAPITool."""
-        combined_schema = route.flat_param_schema
-        output_schema = extract_output_schema_from_responses(
-            route.responses,
-            route.response_schemas,
-            route.openapi_version,
-        )
-
-        if not self._validate_output and output_schema is not None:
-            # Use a permissive schema that accepts any object, preserving
-            # the wrap-result flag so non-object responses still get wrapped
-            permissive: dict[str, Any] = {
-                "type": "object",
-                "additionalProperties": True,
-            }
-            if output_schema.get("x-fastmcp-wrap-result"):
-                permissive["x-fastmcp-wrap-result"] = True
-            output_schema = permissive
-
-        tool_name = self._get_unique_name(name, "tool")
-        base_description = (
-            route.description
-            or route.summary
-            or f"Executes {route.method} {route.path}"
-        )
-
-        tool = OpenAPITool(
-            client=self._client,
-            route=route,
-            director=self._director,
-            name=tool_name,
-            description=base_description,
-            parameters=combined_schema,
-            output_schema=output_schema,
-            tags=set(route.tags or []) | tags,
-        )
-
-        if self._mcp_component_fn is not None:
-            try:
-                self._mcp_component_fn(route, tool)
-                logger.debug(f"Tool {tool_name} customized by component_fn")
-            except Exception as e:
-                logger.warning(f"Error in component_fn for tool {tool_name}: {e}")
-
-        self._tools[tool.name] = tool
+        pass
 
     def _create_openapi_resource(
         self,
@@ -285,33 +209,7 @@ class OpenAPIProvider(Provider):
         tags: set[str],
     ) -> None:
         """Create and register an OpenAPIResource."""
-        resource_name = self._get_unique_name(name, "resource")
-        resource_uri = f"resource://{resource_name}"
-        base_description = (
-            route.description or route.summary or f"Represents {route.path}"
-        )
-
-        resource = OpenAPIResource(
-            client=self._client,
-            route=route,
-            director=self._director,
-            uri=resource_uri,
-            name=resource_name,
-            description=base_description,
-            mime_type=_extract_mime_type_from_route(route),
-            tags=set(route.tags or []) | tags,
-        )
-
-        if self._mcp_component_fn is not None:
-            try:
-                self._mcp_component_fn(route, resource)
-                logger.debug(f"Resource {resource_uri} customized by component_fn")
-            except Exception as e:
-                logger.warning(
-                    f"Error in component_fn for resource {resource_uri}: {e}"
-                )
-
-        self._resources[str(resource.uri)] = resource
+        pass
 
     def _create_openapi_template(
         self,
@@ -320,61 +218,7 @@ class OpenAPIProvider(Provider):
         tags: set[str],
     ) -> None:
         """Create and register an OpenAPIResourceTemplate."""
-        template_name = self._get_unique_name(name, "resource_template")
-
-        path_params = sorted(p.name for p in route.parameters if p.location == "path")
-        uri_template_str = f"resource://{template_name}"
-        if path_params:
-            uri_template_str += "/" + "/".join(f"{{{p}}}" for p in path_params)
-
-        base_description = (
-            route.description or route.summary or f"Template for {route.path}"
-        )
-
-        template_params_schema = {
-            "type": "object",
-            "properties": {
-                p.name: {
-                    **(p.schema_.copy() if isinstance(p.schema_, dict) else {}),
-                    **(
-                        {"description": p.description}
-                        if p.description
-                        and not (
-                            isinstance(p.schema_, dict) and "description" in p.schema_
-                        )
-                        else {}
-                    ),
-                }
-                for p in route.parameters
-                if p.location == "path"
-            },
-            "required": [
-                p.name for p in route.parameters if p.location == "path" and p.required
-            ],
-        }
-
-        template = OpenAPIResourceTemplate(
-            client=self._client,
-            route=route,
-            director=self._director,
-            uri_template=uri_template_str,
-            name=template_name,
-            description=base_description,
-            parameters=template_params_schema,
-            tags=set(route.tags or []) | tags,
-            mime_type=_extract_mime_type_from_route(route),
-        )
-
-        if self._mcp_component_fn is not None:
-            try:
-                self._mcp_component_fn(route, template)
-                logger.debug(f"Template {uri_template_str} customized by component_fn")
-            except Exception as e:
-                logger.warning(
-                    f"Error in component_fn for template {uri_template_str}: {e}"
-                )
-
-        self._templates[template.uri_template] = template
+        pass
 
     # -------------------------------------------------------------------------
     # Provider interface

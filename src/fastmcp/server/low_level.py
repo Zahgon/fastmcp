@@ -47,10 +47,7 @@ class MiddlewareServerSession(ServerSession):
     @property
     def fastmcp(self) -> FastMCP:
         """Get the FastMCP instance."""
-        fastmcp = self._fastmcp_ref()
-        if fastmcp is None:
-            raise RuntimeError("FastMCP instance is no longer available")
-        return fastmcp
+        pass
 
     def client_supports_extension(self, extension_id: str) -> bool:
         """Check if the connected client supports a given MCP extension.
@@ -58,18 +55,7 @@ class MiddlewareServerSession(ServerSession):
         Inspects the ``extensions`` extra field on ``ClientCapabilities``
         sent by the client during initialization.
         """
-        client_params = self._client_params
-        if client_params is None:
-            return False
-        caps = client_params.capabilities
-        if caps is None:
-            return False
-        # ClientCapabilities uses extra="allow" — extensions is an extra field
-        extras = caps.model_extra or {}
-        extensions: dict[str, Any] | None = extras.get("extensions")
-        if not extensions:
-            return False
-        return extension_id in extensions
+        pass
 
     async def _received_request(
         self,
@@ -81,75 +67,7 @@ class MiddlewareServerSession(ServerSession):
 
         Handles initialization requests and SEP-1686 task methods.
         """
-        import fastmcp.server.context
-        from fastmcp.server.middleware.middleware import MiddlewareContext
-
-        if isinstance(responder.request.root, mcp.types.InitializeRequest):
-            # The MCP SDK's ServerSession._received_request() handles the
-            # initialize request internally by calling responder.respond()
-            # to send the InitializeResult directly to the write stream, then
-            # returning None. This bypasses the middleware return path entirely,
-            # so middleware would only see the request, never the response.
-            #
-            # To expose the response to middleware (e.g., for logging server
-            # capabilities), we wrap responder.respond() to capture the
-            # InitializeResult before it's sent, then return it from
-            # call_original_handler so it flows back through the middleware chain.
-            captured_response: mcp.types.ServerResult | None = None
-            original_respond = responder.respond
-
-            async def capturing_respond(
-                response: mcp.types.ServerResult,
-            ) -> None:
-                nonlocal captured_response
-                captured_response = response
-                return await original_respond(response)
-
-            responder.respond = capturing_respond  # type: ignore[method-assign]  # ty:ignore[invalid-assignment]
-
-            async def call_original_handler(
-                ctx: MiddlewareContext,
-            ) -> mcp.types.InitializeResult | None:
-                await super(MiddlewareServerSession, self)._received_request(responder)
-                if captured_response is not None and isinstance(
-                    captured_response.root, mcp.types.InitializeResult
-                ):
-                    return captured_response.root
-                return None
-
-            async with fastmcp.server.context.Context(
-                fastmcp=self.fastmcp, session=self
-            ) as fastmcp_ctx:
-                # Create the middleware context.
-                mw_context = MiddlewareContext(
-                    message=responder.request.root,
-                    source="client",
-                    type="request",
-                    method="initialize",
-                    fastmcp_context=fastmcp_ctx,
-                )
-
-                try:
-                    return await self.fastmcp._run_middleware(
-                        mw_context, call_original_handler
-                    )
-                except McpError as e:
-                    # McpError can be thrown from middleware in `on_initialize`
-                    # send the error to responder.
-                    if not responder._completed:
-                        with responder:
-                            await responder.respond(e.error)
-                    else:
-                        # Don't re-raise: prevents responding to initialize request twice
-                        logger.warning(
-                            "Received McpError but responder is already completed. "
-                            "Cannot send error response as response was already sent.",
-                            exc_info=e,
-                        )
-                    return None
-
-        # Fall through to default handling (task methods now handled via registered handlers)
-        return await super()._received_request(responder)
+        pass
 
 
 class LowLevelServer(_Server[LifespanResultT, RequestT]):
@@ -168,10 +86,7 @@ class LowLevelServer(_Server[LifespanResultT, RequestT]):
     @property
     def fastmcp(self) -> FastMCP:
         """Get the FastMCP instance."""
-        fastmcp = self._fastmcp_ref()
-        if fastmcp is None:
-            raise RuntimeError("FastMCP instance is no longer available")
-        return fastmcp
+        pass
 
     def create_initialization_options(
         self,
@@ -199,28 +114,7 @@ class LowLevelServer(_Server[LifespanResultT, RequestT]):
         capabilities.experimental.tasks, which is required by the MCP spec and
         enables proper task detection by clients like VS Code Copilot 1.107+.
         """
-        from fastmcp.server.tasks.capabilities import get_task_capabilities
-
-        # Get base capabilities from SDK (pass empty dict for experimental)
-        # since we'll set tasks as a first-class field instead
-        capabilities = super().get_capabilities(
-            notification_options,
-            experimental_capabilities or {},
-        )
-
-        # Set tasks as a first-class field (not experimental) per SEP-1686
-        capabilities.tasks = get_task_capabilities()
-
-        # Advertise MCP Apps extension support (io.modelcontextprotocol/ui)
-        # Uses the same extra-field pattern as tasks above — ServerCapabilities
-        # has extra="allow" so this survives serialization.
-        # Merge with any existing extensions to avoid clobbering other features.
-        existing_extensions: dict[str, Any] = (
-            getattr(capabilities, "extensions", None) or {}
-        )
-        capabilities.extensions = {**existing_extensions, UI_EXTENSION_ID: {}}
-
-        return capabilities
+        pass
 
     async def run(
         self,

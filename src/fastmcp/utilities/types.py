@@ -259,21 +259,11 @@ class Image:
     @staticmethod
     def _get_expanded_path(path: str | Path | None) -> Path | None:
         """Expand environment variables and user home in path."""
-        return Path(os.path.expandvars(str(path))).expanduser() if path else None
+        pass
 
     def _get_mime_type(self) -> str:
         """Get MIME type from format or guess from file extension."""
-        if self._format:
-            return f"image/{self._format.lower()}"
-
-        if self.path:
-            # Workaround for WEBP in Py3.10
-            mimetypes.add_type("image/webp", ".webp")
-            resp = mimetypes.guess_type(self.path, strict=False)
-            if resp and resp[0] is not None:
-                return resp[0]
-            return "application/octet-stream"
-        return "image/png"  # default for raw binary data
+        pass
 
     def _get_data(self) -> str:
         """Get raw image data as base64-encoded string."""
@@ -303,8 +293,7 @@ class Image:
 
     def to_data_uri(self, mime_type: str | None = None) -> str:
         """Get image as a data URI."""
-        data = self._get_data()
-        return f"data:{mime_type or self._mime_type};base64,{data}"
+        pass
 
 
 class Audio:
@@ -330,19 +319,7 @@ class Audio:
 
     def _get_mime_type(self) -> str:
         """Get MIME type from format or guess from file extension."""
-        if self._format:
-            return f"audio/{self._format.lower()}"
-
-        if self.path:
-            suffix = self.path.suffix.lower()
-            return {
-                ".wav": "audio/wav",
-                ".mp3": "audio/mpeg",
-                ".ogg": "audio/ogg",
-                ".m4a": "audio/mp4",
-                ".flac": "audio/flac",
-            }.get(suffix, "application/octet-stream")
-        return "audio/wav"  # default for raw binary data
+        pass
 
     def to_audio_content(
         self,
@@ -390,19 +367,7 @@ class File:
 
     def _get_mime_type(self) -> str:
         """Get MIME type from format or guess from file extension."""
-        if self._format:
-            fmt = self._format.lower()
-            # Map common text formats to text/plain
-            if fmt in {"plain", "txt", "text"}:
-                return "text/plain"
-            return f"application/{fmt}"
-
-        if self.path:
-            mime_type, _ = mimetypes.guess_type(self.path)
-            if mime_type:
-                return mime_type
-
-        return "application/octet-stream"
+        pass
 
     def to_resource_content(
         self,

@@ -201,17 +201,7 @@ class FileUpload(FastMCPApp):
             List of file summary dicts (``name``, ``type``, ``size``,
             ``size_display``, ``uploaded_at``).
         """
-        scope = self._get_scope_key(ctx)
-        session_files = self._store.setdefault(scope, {})
-        for f in files:
-            session_files[f["name"]] = {
-                "name": f["name"],
-                "size": f["size"],
-                "type": f["type"],
-                "data": f["data"],
-                "uploaded_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            }
-        return [_make_summary(e) for e in session_files.values()]
+        pass
 
     def on_list(self, ctx: Context) -> list[dict[str, Any]]:
         """List all stored files.
@@ -248,158 +238,11 @@ class FileUpload(FastMCPApp):
         Raises:
             ValueError: If the file is not found.
         """
-        scope = self._get_scope_key(ctx)
-        session_files = self._store.get(scope, {})
-        if name not in session_files:
-            available = list(session_files.keys())
-            raise ValueError(f"File {name!r} not found. Available: {available}")
-        entry = session_files[name]
-        result: dict[str, Any] = {
-            "name": entry["name"],
-            "size": entry["size"],
-            "type": entry["type"],
-            "uploaded_at": entry["uploaded_at"],
-        }
-        is_text = entry["type"].startswith("text/") or any(
-            entry["name"].endswith(ext) for ext in _TEXT_EXTENSIONS
-        )
-        if is_text:
-            try:
-                result["content"] = base64.b64decode(entry["data"]).decode("utf-8")
-            except UnicodeDecodeError:
-                result["content_base64"] = entry["data"][:200] + "..."
-        else:
-            result["content_base64"] = entry["data"][:200] + "..."
-        return result
+        pass
 
     # ------------------------------------------------------------------
     # Tool registration
     # ------------------------------------------------------------------
 
     def _register_tools(self) -> None:
-        provider = self
-
-        @self.tool()
-        def store_files(files: list[dict], ctx: Context) -> list[dict]:
-            """Store uploaded files. Receives file objects with name, size, type, data (base64)."""
-            for f in files:
-                # Compute actual data size from the base64 payload rather
-                # than trusting the client-reported ``size`` field.
-                actual_size = _b64_decoded_size(f.get("data", ""))
-                if actual_size > provider._max_file_size:
-                    raise ValueError(
-                        f"File {f.get('name', '?')!r} exceeds max size "
-                        f"({_format_size(actual_size)} > "
-                        f"{_format_size(provider._max_file_size)})"
-                    )
-            return provider.on_store(files, ctx)
-
-        @self.tool(model=True)
-        def list_files(ctx: Context) -> list[dict]:
-            """List all uploaded files with metadata."""
-            return provider.on_list(ctx)
-
-        @self.tool(model=True)
-        def read_file(name: str, ctx: Context) -> dict:
-            """Read an uploaded file's contents by name."""
-            return provider.on_read(name, ctx)
-
-        @self.ui()
-        def file_manager(ctx: Context) -> PrefabApp:
-            """Upload and manage files. Drop files here to send them to the server."""
-            with Card(css_class="max-w-2xl mx-auto") as view:
-                with CardHeader(), Row(gap=2, align="center"):
-                    H3(provider._title)
-                    with If(STATE.stored.length()):
-                        Badge(
-                            STATE.stored.length(),  # ty:ignore[invalid-argument-type]
-                            variant="secondary",
-                        )
-
-                with CardContent(), Column(gap=4):
-                    Muted(provider._description)
-
-                    DropZone(
-                        name="pending",
-                        icon="inbox",
-                        label=provider._drop_label,
-                        description=(
-                            "Any file type, up to "
-                            f"{_format_size(provider._max_file_size)}"
-                        ),
-                        multiple=True,
-                        max_size=provider._max_file_size,
-                    )
-
-                    with If(STATE.pending.length()), Column(gap=2):
-                        with (
-                            ForEach("pending"),
-                            Row(gap=2, align="center"),
-                            Column(gap=0),
-                        ):
-                            Small(Rx("$item.name"))  # ty:ignore[invalid-argument-type]
-                            Muted(Rx("$item.type"))  # ty:ignore[invalid-argument-type]
-
-                        Button(
-                            "Upload to Server",
-                            on_click=CallTool(
-                                "store_files",
-                                arguments={
-                                    "files": Rx("pending"),
-                                },
-                                on_success=[
-                                    SetState("stored", RESULT),
-                                    SetState("pending", []),
-                                    ShowToast(
-                                        "Files uploaded!",
-                                        variant="success",
-                                    ),
-                                ],
-                                on_error=ShowToast(
-                                    ERROR,  # ty:ignore[invalid-argument-type]
-                                    variant="error",
-                                ),
-                            ),
-                        )
-
-                    with If(STATE.stored.length()):
-                        Separator()
-                        Text(
-                            "Uploaded",
-                            css_class="font-medium text-sm",
-                        )
-                        with (
-                            ForEach("stored") as f,
-                            Row(
-                                gap=2,
-                                align="center",
-                                css_class="justify-between",
-                            ),
-                        ):
-                            with Column(gap=0):
-                                Small(f.name)  # ty:ignore[invalid-argument-type]
-                                Muted(f.uploaded_at)  # ty:ignore[invalid-argument-type]
-                            with Row(gap=2):
-                                Badge(f.type, variant="secondary")  # ty:ignore[invalid-argument-type]
-                                Badge(
-                                    f.size_display,  # ty:ignore[invalid-argument-type]
-                                    variant="outline",
-                                )
-
-                with CardFooter(), Row(align="center", css_class="w-full"):
-                    with If(STATE.stored.length()):
-                        Muted(
-                            f"{STATE.stored.length()}"
-                            f" {STATE.stored.length().pluralize('file')}"
-                            " on server"
-                        )
-                    with Else():
-                        Muted("No files uploaded yet")
-
-            return PrefabApp(
-                view=view,
-                state={
-                    "pending": [],
-                    "stored": provider.on_list(ctx),
-                },
-            )
+        pass

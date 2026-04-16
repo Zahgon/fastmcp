@@ -126,33 +126,7 @@ class JWTIssuer:
         Returns:
             Signed JWT token
         """
-        now = int(time.time())
-
-        header = {"alg": "HS256", "typ": "JWT"}
-        payload: dict[str, Any] = {
-            "iss": self.issuer,
-            "aud": self.audience,
-            "client_id": client_id,
-            "scope": " ".join(scopes),
-            "exp": now + expires_in,
-            "iat": now,
-            "jti": jti,
-        }
-
-        if upstream_claims:
-            payload["upstream_claims"] = upstream_claims
-
-        token_bytes = self._jwt.encode(header, payload, self._signing_key)
-        token = token_bytes.decode("utf-8")
-
-        logger.debug(
-            "Issued access token for client=%s jti=%s exp=%d",
-            client_id,
-            jti[:8],
-            payload["exp"],
-        )
-
-        return token
+        pass
 
     def issue_refresh_token(
         self,
@@ -178,34 +152,7 @@ class JWTIssuer:
         Returns:
             Signed JWT token
         """
-        now = int(time.time())
-
-        header = {"alg": "HS256", "typ": "JWT"}
-        payload: dict[str, Any] = {
-            "iss": self.issuer,
-            "aud": self.audience,
-            "client_id": client_id,
-            "scope": " ".join(scopes),
-            "exp": now + expires_in,
-            "iat": now,
-            "jti": jti,
-            "token_use": "refresh",
-        }
-
-        if upstream_claims:
-            payload["upstream_claims"] = upstream_claims
-
-        token_bytes = self._jwt.encode(header, payload, self._signing_key)
-        token = token_bytes.decode("utf-8")
-
-        logger.debug(
-            "Issued refresh token for client=%s jti=%s exp=%d",
-            client_id,
-            jti[:8],
-            payload["exp"],
-        )
-
-        return token
+        pass
 
     def verify_token(
         self,
@@ -227,44 +174,4 @@ class JWTIssuer:
         Raises:
             JoseError: If token is invalid, expired, or has wrong claims
         """
-        try:
-            # Decode and verify signature
-            payload = self._jwt.decode(token, self._signing_key)
-
-            # Validate token type
-            token_use = payload.get("token_use", "access")
-            if token_use != expected_token_use:
-                logger.debug(
-                    "Token type mismatch: expected %s, got %s",
-                    expected_token_use,
-                    token_use,
-                )
-                raise JoseError(
-                    f"Token type mismatch: expected {expected_token_use}, "
-                    f"got {token_use}"
-                )
-
-            # Validate expiration
-            exp = payload.get("exp")
-            if exp is not None and exp < time.time():
-                logger.debug("Token expired")
-                raise JoseError("Token has expired")
-
-            # Validate issuer
-            if payload.get("iss") != self.issuer:
-                logger.debug("Token has invalid issuer")
-                raise JoseError("Invalid token issuer")
-
-            # Validate audience
-            if payload.get("aud") != self.audience:
-                logger.debug("Token has invalid audience")
-                raise JoseError("Invalid token audience")
-
-            logger.debug(
-                "Token verified successfully for subject=%s", payload.get("sub")
-            )
-            return payload
-
-        except JoseError as e:
-            logger.debug("Token validation failed: %s", e)
-            raise
+        pass

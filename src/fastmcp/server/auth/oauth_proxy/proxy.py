@@ -603,12 +603,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         The JWT issuer is created when set_mcp_path() is called (via get_routes()).
         This property ensures a clear error if used before initialization.
         """
-        if self._jwt_issuer is None:
-            raise RuntimeError(
-                "JWT issuer not initialized. Ensure get_routes() is called "
-                "before token operations."
-            )
-        return self._jwt_issuer
+        pass
 
     # -------------------------------------------------------------------------
     # Upstream OAuth Client
@@ -622,16 +617,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         override this to provide alternative authentication methods (e.g.,
         managed-identity client assertions instead of a static client secret).
         """
-        return AsyncOAuth2Client(
-            client_id=self._upstream_client_id,
-            client_secret=(
-                self._upstream_client_secret.get_secret_value()
-                if self._upstream_client_secret is not None
-                else None
-            ),
-            token_endpoint_auth_method=self._token_endpoint_auth_method,
-            timeout=HTTP_TIMEOUT_SECONDS,
-        )
+        pass
 
     # -------------------------------------------------------------------------
     # PKCE Helper Methods
@@ -643,14 +629,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         Returns:
             Tuple of (code_verifier, code_challenge) using S256 method
         """
-        # Generate code verifier: 43-128 characters from unreserved set
-        code_verifier = generate_token(48)
-
-        # Generate code challenge using S256 (SHA256 + base64url)
-        challenge_bytes = hashlib.sha256(code_verifier.encode()).digest()
-        code_challenge = urlsafe_b64encode(challenge_bytes).decode().rstrip("=")
-
-        return code_verifier, code_challenge
+        pass
 
     # -------------------------------------------------------------------------
     # Client Registration (Local Implementation)
@@ -664,41 +643,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         For unregistered clients, returns None (which will raise an error in the SDK).
         CIMD clients (URL-based client IDs) are looked up and cached automatically.
         """
-        # Load from storage
-        client = await self._client_store.get(key=client_id)
-
-        if client is not None:
-            if self._allowed_client_redirect_uris is not None:
-                client.allowed_redirect_uri_patterns = (
-                    self._allowed_client_redirect_uris
-                )
-
-            # Refresh CIMD clients using HTTP cache-aware fetcher.
-            if self._cimd_manager is not None and client.cimd_document is not None:
-                try:
-                    refreshed = await self._cimd_manager.get_client(client_id)
-                    if refreshed is not None:
-                        await self._client_store.put(key=client_id, value=refreshed)
-                        return refreshed
-                except Exception as e:
-                    logger.debug(
-                        "CIMD refresh failed for %s, using cached client: %s",
-                        client_id,
-                        e,
-                    )
-
-            return client
-
-        # Client not in storage — try CIMD lookup for URL-based client IDs
-        if self._cimd_manager is not None and self._cimd_manager.is_cimd_client_id(
-            client_id
-        ):
-            cimd_client = await self._cimd_manager.get_client(client_id)
-            if cimd_client is not None:
-                await self._client_store.put(key=client_id, value=cimd_client)
-                return cimd_client
-
-        return None
+        pass
 
     @override
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
@@ -709,45 +654,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         redirect URI will likely be localhost or unknown to the proxied IDP. The
         proxied IDP only knows about this server's fixed redirect URI.
         """
-
-        # Create a ProxyDCRClient with configured redirect URI validation
-        if client_info.client_id is None:
-            raise ValueError("client_id is required for client registration")
-        # We use token_endpoint_auth_method="none" because the proxy handles
-        # all upstream authentication. The client_secret must also be None
-        # because the SDK requires secrets to be provided if they're set,
-        # regardless of auth method.
-        proxy_client: ProxyDCRClient = ProxyDCRClient(
-            client_id=client_info.client_id,
-            client_secret=None,
-            redirect_uris=client_info.redirect_uris or [AnyUrl("http://localhost")],
-            grant_types=client_info.grant_types
-            or ["authorization_code", "refresh_token"],
-            scope=client_info.scope or self._default_scope_str,
-            token_endpoint_auth_method="none",
-            allowed_redirect_uri_patterns=self._allowed_client_redirect_uris,
-            client_name=getattr(client_info, "client_name", None),
-        )
-
-        await self._client_store.put(
-            key=client_info.client_id,
-            value=proxy_client,
-        )
-
-        # Log redirect URIs to help users discover what patterns they might need
-        if client_info.redirect_uris:
-            for uri in client_info.redirect_uris:
-                logger.debug(
-                    "Client registered with redirect_uri: %s - if restricting redirect URIs, "
-                    "ensure this pattern is allowed in allowed_client_redirect_uris",
-                    uri,
-                )
-
-        logger.debug(
-            "Registered client %s with %d redirect URIs",
-            client_info.client_id,
-            len(proxy_client.redirect_uris) if proxy_client.redirect_uris else 0,
-        )
+        pass
 
     # -------------------------------------------------------------------------
     # Authorization Flow (Proxy to Upstream)
@@ -770,103 +677,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         If consent is disabled (require_authorization_consent=False), skip the consent screen
         and redirect directly to the upstream IdP.
         """
-        # Security check: validate client's requested resource matches this server
-        # This prevents tokens intended for one server from being used on another
-        #
-        # Per RFC 8707, clients may include query parameters in resource URLs (e.g.,
-        # ChatGPT sends ?kb_name=X). We handle two cases:
-        #
-        # 1. Server URL has NO query params: normalize both URLs (strip query/fragment)
-        #    to allow clients like ChatGPT that add query params to still match.
-        #
-        # 2. Server URL HAS query params (e.g., multi-tenant ?tenant=X): require exact
-        #    match to prevent clients from bypassing tenant isolation by changing params.
-        #
-        # Claude doesn't send a resource parameter at all, so this check is skipped.
-        client_resource = getattr(params, "resource", None)
-        if client_resource and self._resource_url:
-            server_url = str(self._resource_url)
-            client_url = str(client_resource)
-
-            if _server_url_has_query(server_url):
-                # Server has query params - require exact match for security
-                urls_match = client_url.rstrip("/") == server_url.rstrip("/")
-            else:
-                # Server has no query params - normalize both for comparison
-                urls_match = _normalize_resource_url(
-                    client_url
-                ) == _normalize_resource_url(server_url)
-
-            if not urls_match:
-                logger.warning(
-                    "Resource mismatch: client requested %s but server is %s",
-                    client_resource,
-                    self._resource_url,
-                )
-                raise AuthorizeError(
-                    error="invalid_target",  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
-                    error_description="Resource does not match this server",
-                )
-
-        # Generate transaction ID for this authorization request
-        txn_id = secrets.token_urlsafe(32)
-
-        # Generate proxy's own PKCE parameters if forwarding is enabled
-        proxy_code_verifier = None
-        proxy_code_challenge = None
-        if self._forward_pkce and params.code_challenge:
-            proxy_code_verifier, proxy_code_challenge = self._generate_pkce_pair()
-            logger.debug(
-                "Generated proxy PKCE for transaction %s (forwarding client PKCE to upstream)",
-                txn_id,
-            )
-
-        # Store transaction data for IdP callback processing
-        if client.client_id is None:
-            raise AuthorizeError(
-                error="invalid_client",  # type: ignore[arg-type]  # "invalid_client" is valid OAuth error but not in Literal type  # ty:ignore[invalid-argument-type]
-                error_description="Client ID is required",
-            )
-        transaction = OAuthTransaction(
-            txn_id=txn_id,
-            client_id=client.client_id,
-            client_redirect_uri=str(params.redirect_uri),
-            client_state=params.state or "",
-            code_challenge=params.code_challenge,
-            code_challenge_method=getattr(params, "code_challenge_method", "S256"),
-            scopes=params.scopes or [],
-            created_at=time.time(),
-            resource=getattr(params, "resource", None),
-            proxy_code_verifier=proxy_code_verifier,
-        )
-        await self._transaction_store.put(
-            key=txn_id,
-            value=transaction,
-            ttl=15 * 60,  # Auto-expire after 15 minutes
-        )
-
-        # If consent is disabled or handled externally, skip consent screen
-        if self._require_authorization_consent is not True:
-            upstream_url = self._build_upstream_authorize_url(
-                txn_id, transaction.model_dump()
-            )
-            logger.debug(
-                "Starting OAuth transaction %s for client %s, redirecting directly to upstream IdP (consent disabled, PKCE forwarding: %s)",
-                txn_id,
-                client.client_id,
-                "enabled" if proxy_code_challenge else "disabled",
-            )
-            return upstream_url
-
-        consent_url = f"{str(self.base_url).rstrip('/')}/consent?txn_id={txn_id}"
-
-        logger.debug(
-            "Starting OAuth transaction %s for client %s, redirecting to consent page (PKCE forwarding: %s)",
-            txn_id,
-            client.client_id,
-            "enabled" if proxy_code_challenge else "disabled",
-        )
-        return consent_url
+        pass
 
     # -------------------------------------------------------------------------
     # Authorization Code Handling
@@ -883,42 +694,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         Look up our client code and return authorization code object
         with PKCE challenge for validation.
         """
-        # Look up client code data
-        code_model = await self._code_store.get(key=authorization_code)
-        if not code_model:
-            logger.debug("Authorization code not found: %s", authorization_code)
-            return None
-
-        # Check if code expired
-        if time.time() > code_model.expires_at:
-            logger.debug("Authorization code expired: %s", authorization_code)
-            _ = await self._code_store.delete(key=authorization_code)
-            return None
-
-        # Verify client ID matches
-        if code_model.client_id != client.client_id:
-            logger.debug(
-                "Authorization code client ID mismatch: %s vs %s",
-                code_model.client_id,
-                client.client_id,
-            )
-            return None
-
-        # Create authorization code object with PKCE challenge
-        if client.client_id is None:
-            raise AuthorizeError(
-                error="invalid_client",  # type: ignore[arg-type]  # "invalid_client" is valid OAuth error but not in Literal type  # ty:ignore[invalid-argument-type]
-                error_description="Client ID is required",
-            )
-        return AuthorizationCode(
-            code=authorization_code,
-            client_id=client.client_id,
-            redirect_uri=AnyUrl(url=code_model.redirect_uri),
-            redirect_uri_provided_explicitly=True,
-            scopes=code_model.scopes,
-            expires_at=code_model.expires_at,
-            code_challenge=code_model.code_challenge or "",
-        )
+        pass
 
     @override
     async def exchange_authorization_code(
@@ -937,185 +713,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
 
         PKCE validation is handled by the MCP framework before this method is called.
         """
-        # Look up stored code data
-        code_model = await self._code_store.get(key=authorization_code.code)
-        if not code_model:
-            logger.error(
-                "Authorization code not found in client codes: %s",
-                authorization_code.code,
-            )
-            raise TokenError("invalid_grant", "Authorization code not found")
-
-        # Get stored upstream tokens
-        idp_tokens = code_model.idp_tokens
-
-        # Use IdP-granted scopes when available (RFC 6749 §5.1: the IdP MUST
-        # include a scope parameter when the granted scope differs from the
-        # requested scope).  Fall back to requested scopes only when the IdP
-        # omits scope, meaning it granted exactly what was requested.
-        granted_scopes: list[str] = (
-            parse_scopes(idp_tokens["scope"]) or []
-            if "scope" in idp_tokens
-            else list(authorization_code.scopes)
-        )
-
-        # Clean up client code (one-time use)
-        await self._code_store.delete(key=authorization_code.code)
-
-        # Generate IDs for token storage
-        upstream_token_id = secrets.token_urlsafe(32)
-        access_jti = secrets.token_urlsafe(32)
-        refresh_jti = (
-            secrets.token_urlsafe(32) if idp_tokens.get("refresh_token") else None
-        )
-
-        # Calculate token expiry times
-        # If upstream provides expires_in, use it. Otherwise use fallback based on:
-        # - User-provided fallback if set
-        # - 1 hour if refresh token available (can refresh when expired)
-        # - 1 year if no refresh token (likely API-key-style token like GitHub OAuth Apps)
-        if "expires_in" in idp_tokens:
-            expires_in = int(idp_tokens["expires_in"])
-            logger.debug(
-                "Access token TTL: %d seconds (from IdP expires_in)", expires_in
-            )
-        elif self._fallback_access_token_expiry_seconds is not None:
-            expires_in = self._fallback_access_token_expiry_seconds
-            logger.debug(
-                "Access token TTL: %d seconds (using configured fallback)", expires_in
-            )
-        elif idp_tokens.get("refresh_token"):
-            expires_in = DEFAULT_ACCESS_TOKEN_EXPIRY_SECONDS
-            logger.debug(
-                "Access token TTL: %d seconds (default, has refresh token)", expires_in
-            )
-        else:
-            expires_in = DEFAULT_ACCESS_TOKEN_EXPIRY_NO_REFRESH_SECONDS
-            logger.debug(
-                "Access token TTL: %d seconds (default, no refresh token)", expires_in
-            )
-
-        # Calculate refresh token expiry if provided by upstream
-        # Some providers include refresh_expires_in, some don't
-        refresh_expires_in = None
-        refresh_token_expires_at = None
-        if idp_tokens.get("refresh_token"):
-            if "refresh_expires_in" in idp_tokens and int(
-                idp_tokens["refresh_expires_in"]
-            ):
-                refresh_expires_in = int(idp_tokens["refresh_expires_in"])
-                refresh_token_expires_at = time.time() + refresh_expires_in
-                logger.debug(
-                    "Upstream refresh token expires in %d seconds", refresh_expires_in
-                )
-            else:
-                # Default to 30 days if upstream doesn't specify
-                # This is conservative - most providers use longer expiry
-                refresh_expires_in = 60 * 60 * 24 * 30  # 30 days
-                refresh_token_expires_at = time.time() + refresh_expires_in
-                logger.debug(
-                    "Upstream refresh token expiry unknown, using 30-day default"
-                )
-
-        # Encrypt and store upstream tokens
-        upstream_token_set = UpstreamTokenSet(
-            upstream_token_id=upstream_token_id,
-            access_token=idp_tokens["access_token"],
-            refresh_token=idp_tokens["refresh_token"]
-            if idp_tokens.get("refresh_token")
-            else None,
-            refresh_token_expires_at=refresh_token_expires_at,
-            expires_at=time.time() + expires_in,
-            token_type=idp_tokens.get("token_type", "Bearer"),
-            scope=" ".join(granted_scopes),
-            client_id=client.client_id or "",
-            created_at=time.time(),
-            raw_token_data=idp_tokens,
-        )
-        await self._upstream_token_store.put(
-            key=upstream_token_id,
-            value=upstream_token_set,
-            ttl=max(
-                refresh_expires_in or 0, expires_in, 1
-            ),  # Keep until longest-lived token expires (min 1s for safety)
-        )
-        logger.debug("Stored encrypted upstream tokens (jti=%s)", access_jti[:8])
-
-        # Extract upstream claims to embed in FastMCP JWT (if subclass implements)
-        upstream_claims = await self._extract_upstream_claims(idp_tokens)
-
-        # Issue minimal FastMCP access token (just a reference via JTI)
-        if client.client_id is None:
-            raise TokenError("invalid_client", "Client ID is required")
-        fastmcp_access_token = self.jwt_issuer.issue_access_token(
-            client_id=client.client_id,
-            scopes=granted_scopes,
-            jti=access_jti,
-            expires_in=expires_in,
-            upstream_claims=upstream_claims,
-        )
-
-        # Issue minimal FastMCP refresh token if upstream provided one
-        # Use upstream refresh token expiry to align lifetimes
-        fastmcp_refresh_token = None
-        if refresh_jti and refresh_expires_in:
-            fastmcp_refresh_token = self.jwt_issuer.issue_refresh_token(
-                client_id=client.client_id,
-                scopes=granted_scopes,
-                jti=refresh_jti,
-                expires_in=refresh_expires_in,
-                upstream_claims=upstream_claims,
-            )
-
-        # Store JTI mappings
-        await self._jti_mapping_store.put(
-            key=access_jti,
-            value=JTIMapping(
-                jti=access_jti,
-                upstream_token_id=upstream_token_id,
-                created_at=time.time(),
-            ),
-            ttl=expires_in,  # Auto-expire with access token
-        )
-        if refresh_jti:
-            await self._jti_mapping_store.put(
-                key=refresh_jti,
-                value=JTIMapping(
-                    jti=refresh_jti,
-                    upstream_token_id=upstream_token_id,
-                    created_at=time.time(),
-                ),
-                ttl=60 * 60 * 24 * 30,  # Auto-expire with refresh token (30 days)
-            )
-
-        # Store refresh token metadata (keyed by hash for security)
-        if fastmcp_refresh_token and refresh_expires_in:
-            await self._refresh_token_store.put(
-                key=_hash_token(fastmcp_refresh_token),
-                value=RefreshTokenMetadata(
-                    client_id=client.client_id,
-                    scopes=granted_scopes,
-                    expires_at=int(time.time()) + refresh_expires_in,
-                    created_at=time.time(),
-                ),
-                ttl=refresh_expires_in,
-            )
-
-        logger.debug(
-            "Issued FastMCP tokens for client=%s (access_jti=%s, refresh_jti=%s)",
-            client.client_id,
-            access_jti[:8],
-            refresh_jti[:8] if refresh_jti else "none",
-        )
-
-        # Return FastMCP-issued tokens (NOT upstream tokens!)
-        return OAuthToken(
-            access_token=fastmcp_access_token,
-            token_type="Bearer",
-            expires_in=expires_in,
-            refresh_token=fastmcp_refresh_token,
-            scope=" ".join(granted_scopes),
-        )
+        pass
 
     # -------------------------------------------------------------------------
     # Refresh Token Flow
@@ -1133,7 +731,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         Returns:
             List of scopes to send, or empty list to omit scope parameter
         """
-        return scopes
+        pass
 
     def _prepare_scopes_for_upstream_refresh(self, scopes: list[str]) -> list[str]:
         """Prepare scopes for upstream token refresh request.
@@ -1150,7 +748,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         Returns:
             Scopes to send to upstream provider (may be transformed/augmented)
         """
-        return scopes
+        pass
 
     async def _extract_upstream_claims(
         self, idp_tokens: dict[str, Any]
@@ -1176,8 +774,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
             extract claims like sub, oid, name, preferred_username, email,
             roles, and groups.
         """
-        _ = idp_tokens
-        return None
+        pass
 
     async def load_refresh_token(
         self,
@@ -1189,24 +786,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         Looks up by token hash and reconstructs the RefreshToken object.
         Validates that the token belongs to the requesting client.
         """
-        token_hash = _hash_token(refresh_token)
-        metadata = await self._refresh_token_store.get(key=token_hash)
-        if not metadata:
-            return None
-        # Verify token belongs to this client (prevents cross-client token usage)
-        if metadata.client_id != client.client_id:
-            logger.warning(
-                "Refresh token client_id mismatch: expected %s, got %s",
-                client.client_id,
-                metadata.client_id,
-            )
-            return None
-        return RefreshToken(
-            token=refresh_token,
-            client_id=metadata.client_id,
-            scopes=metadata.scopes,
-            expires_at=metadata.expires_at,
-        )
+        pass
 
     async def exchange_refresh_token(
         self,
@@ -1224,225 +804,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         5. Issue new FastMCP access token
         6. Keep same FastMCP refresh token (unless upstream rotates)
         """
-        # Verify FastMCP refresh token
-        try:
-            refresh_payload = self.jwt_issuer.verify_token(
-                refresh_token.token, expected_token_use="refresh"
-            )
-            refresh_jti = refresh_payload["jti"]
-        except Exception as e:
-            logger.debug("FastMCP refresh token validation failed: %s", e)
-            raise TokenError("invalid_grant", "Invalid refresh token") from e
-
-        # Look up upstream token via JTI mapping
-        jti_mapping = await self._jti_mapping_store.get(key=refresh_jti)
-        if not jti_mapping:
-            logger.error("JTI mapping not found for refresh token: %s", refresh_jti[:8])
-            raise TokenError("invalid_grant", "Refresh token mapping not found")
-
-        upstream_token_set = await self._upstream_token_store.get(
-            key=jti_mapping.upstream_token_id
-        )
-        if not upstream_token_set:
-            logger.error(
-                "Upstream token set not found: %s", jti_mapping.upstream_token_id[:8]
-            )
-            raise TokenError("invalid_grant", "Upstream token not found")
-
-        # Decrypt upstream refresh token
-        if not upstream_token_set.refresh_token:
-            logger.error("No upstream refresh token available")
-            raise TokenError("invalid_grant", "Refresh not supported for this token")
-
-        # Refresh upstream token using authlib
-        oauth_client = self._create_upstream_oauth_client()
-
-        # Allow child classes to transform scopes before sending to upstream
-        # This enables provider-specific scope formatting (e.g., Azure prefixing)
-        # while keeping original scopes in storage
-        upstream_scopes = self._prepare_scopes_for_upstream_refresh(scopes)
-
-        try:
-            logger.debug("Refreshing upstream token (jti=%s)", refresh_jti[:8])
-            token_response: dict[str, Any] = await oauth_client.refresh_token(
-                url=self._upstream_token_endpoint,
-                refresh_token=upstream_token_set.refresh_token,
-                scope=" ".join(upstream_scopes) if upstream_scopes else None,
-                **self._extra_token_params,
-            )
-            logger.debug("Successfully refreshed upstream token")
-        except Exception as e:
-            logger.error("Upstream token refresh failed: %s", e)
-            raise TokenError("invalid_grant", f"Upstream refresh failed: {e}") from e
-
-        # Update stored upstream token
-        # In refresh flow, we know there's a refresh token, so default to 1 hour
-        # (user override still applies if set)
-        if "expires_in" in token_response:
-            new_expires_in = int(token_response["expires_in"])
-            logger.debug(
-                "Refreshed access token TTL: %d seconds (from IdP expires_in)",
-                new_expires_in,
-            )
-        elif self._fallback_access_token_expiry_seconds is not None:
-            new_expires_in = self._fallback_access_token_expiry_seconds
-            logger.debug(
-                "Refreshed access token TTL: %d seconds (using configured fallback)",
-                new_expires_in,
-            )
-        else:
-            new_expires_in = DEFAULT_ACCESS_TOKEN_EXPIRY_SECONDS
-            logger.debug(
-                "Refreshed access token TTL: %d seconds (default)", new_expires_in
-            )
-        upstream_token_set.access_token = token_response["access_token"]
-        upstream_token_set.expires_at = time.time() + new_expires_in
-
-        # Prefer IdP-granted scopes from refresh response (RFC 6749 §5.1)
-        refreshed_scopes: list[str] = (
-            parse_scopes(token_response["scope"]) or []
-            if "scope" in token_response
-            else scopes
-        )
-        upstream_token_set.scope = " ".join(refreshed_scopes)
-
-        # Handle upstream refresh token rotation and expiry
-        new_refresh_expires_in = None
-        if new_upstream_refresh := token_response.get("refresh_token"):
-            if new_upstream_refresh != upstream_token_set.refresh_token:
-                upstream_token_set.refresh_token = new_upstream_refresh
-                logger.debug("Upstream refresh token rotated")
-
-            # Update refresh token expiry if provided
-            if "refresh_expires_in" in token_response and int(
-                token_response["refresh_expires_in"]
-            ):
-                new_refresh_expires_in = int(token_response["refresh_expires_in"])
-                upstream_token_set.refresh_token_expires_at = (
-                    time.time() + new_refresh_expires_in
-                )
-                logger.debug(
-                    "Upstream refresh token expires in %d seconds",
-                    new_refresh_expires_in,
-                )
-            elif upstream_token_set.refresh_token_expires_at:
-                # Keep existing expiry if upstream doesn't provide new one
-                new_refresh_expires_in = int(
-                    upstream_token_set.refresh_token_expires_at - time.time()
-                )
-            else:
-                # Default to 30 days if unknown
-                new_refresh_expires_in = 60 * 60 * 24 * 30
-                upstream_token_set.refresh_token_expires_at = (
-                    time.time() + new_refresh_expires_in
-                )
-
-        upstream_token_set.raw_token_data = {
-            **upstream_token_set.raw_token_data,
-            **token_response,
-        }
-        # Calculate refresh TTL for storage
-        refresh_ttl = new_refresh_expires_in or (
-            int(upstream_token_set.refresh_token_expires_at - time.time())
-            if upstream_token_set.refresh_token_expires_at
-            else 60 * 60 * 24 * 30  # Default to 30 days if unknown
-        )
-        await self._upstream_token_store.put(
-            key=upstream_token_set.upstream_token_id,
-            value=upstream_token_set,
-            ttl=max(
-                refresh_ttl, new_expires_in, 1
-            ),  # Keep until longest-lived token expires (min 1s for safety)
-        )
-
-        # Re-extract upstream claims from refreshed token response
-        upstream_claims = await self._extract_upstream_claims(
-            upstream_token_set.raw_token_data
-        )
-
-        # Issue new minimal FastMCP access token (just a reference via JTI)
-        if client.client_id is None:
-            raise TokenError("invalid_client", "Client ID is required")
-        new_access_jti = secrets.token_urlsafe(32)
-        new_fastmcp_access = self.jwt_issuer.issue_access_token(
-            client_id=client.client_id,
-            scopes=refreshed_scopes,
-            jti=new_access_jti,
-            expires_in=new_expires_in,
-            upstream_claims=upstream_claims,
-        )
-
-        # Store new access token JTI mapping
-        await self._jti_mapping_store.put(
-            key=new_access_jti,
-            value=JTIMapping(
-                jti=new_access_jti,
-                upstream_token_id=upstream_token_set.upstream_token_id,
-                created_at=time.time(),
-            ),
-            ttl=new_expires_in,  # Auto-expire with refreshed access token
-        )
-
-        # Issue NEW minimal FastMCP refresh token (rotation for security)
-        # Use upstream refresh token expiry to align lifetimes
-        new_refresh_jti = secrets.token_urlsafe(32)
-        new_fastmcp_refresh = self.jwt_issuer.issue_refresh_token(
-            client_id=client.client_id,
-            scopes=refreshed_scopes,
-            jti=new_refresh_jti,
-            expires_in=new_refresh_expires_in
-            or 60 * 60 * 24 * 30,  # Fallback to 30 days
-            upstream_claims=upstream_claims,
-        )
-
-        # Store new refresh token JTI mapping with aligned expiry
-        # (reuse refresh_ttl calculated above for upstream token store)
-        await self._jti_mapping_store.put(
-            key=new_refresh_jti,
-            value=JTIMapping(
-                jti=new_refresh_jti,
-                upstream_token_id=upstream_token_set.upstream_token_id,
-                created_at=time.time(),
-            ),
-            ttl=refresh_ttl,  # Align with upstream refresh token expiry
-        )
-
-        # Invalidate old refresh token (refresh token rotation - enforces one-time use)
-        await self._jti_mapping_store.delete(key=refresh_jti)
-        logger.debug(
-            "Rotated refresh token (old JTI invalidated - one-time use enforced)"
-        )
-
-        # Store new refresh token metadata (keyed by hash)
-        await self._refresh_token_store.put(
-            key=_hash_token(new_fastmcp_refresh),
-            value=RefreshTokenMetadata(
-                client_id=client.client_id,
-                scopes=refreshed_scopes,
-                expires_at=int(time.time()) + refresh_ttl,
-                created_at=time.time(),
-            ),
-            ttl=refresh_ttl,
-        )
-
-        # Delete old refresh token (by hash)
-        await self._refresh_token_store.delete(key=_hash_token(refresh_token.token))
-
-        logger.info(
-            "Issued new FastMCP tokens (rotated refresh) for client=%s (access_jti=%s, refresh_jti=%s)",
-            client.client_id,
-            new_access_jti[:8],
-            new_refresh_jti[:8],
-        )
-
-        # Return new FastMCP tokens (both access AND refresh are new)
-        return OAuthToken(
-            access_token=new_fastmcp_access,
-            token_type="Bearer",
-            expires_in=new_expires_in,
-            refresh_token=new_fastmcp_refresh,  # NEW refresh token (rotated)
-            scope=" ".join(refreshed_scopes),
-        )
+        pass
 
     # -------------------------------------------------------------------------
     # Token Validation
@@ -1457,7 +819,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         to verify a different token (e.g., the OIDC id_token for providers
         that issue opaque access tokens).
         """
-        return upstream_token_set.access_token
+        pass
 
     def _uses_alternate_verification(self) -> bool:
         """Whether this provider verifies a different token than the access token.
@@ -1473,7 +835,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         carry the same value (e.g., some OIDC providers issue identical
         JWTs for both).
         """
-        return False
+        pass
 
     async def _try_transparent_refresh(
         self,
@@ -1488,76 +850,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         Mutates and returns the upstream_token_set with refreshed token data.
         Raises on failure (caller should catch and fall through to None).
         """
-        scopes = upstream_token_set.scope.split() if upstream_token_set.scope else []
-        upstream_scopes = self._prepare_scopes_for_upstream_refresh(scopes)
-        oauth_client = self._create_upstream_oauth_client()
-
-        token_response: dict[str, Any] = await oauth_client.refresh_token(
-            url=self._upstream_token_endpoint,
-            refresh_token=upstream_token_set.refresh_token,
-            scope=" ".join(upstream_scopes) if upstream_scopes else None,
-            **self._extra_token_params,
-        )
-        logger.debug(
-            "Transparent upstream refresh succeeded (token_id=%s)",
-            upstream_token_set.upstream_token_id[:8],
-        )
-
-        # Calculate new expiry
-        if "expires_in" in token_response:
-            new_expires_in = int(token_response["expires_in"])
-        elif self._fallback_access_token_expiry_seconds is not None:
-            new_expires_in = self._fallback_access_token_expiry_seconds
-        else:
-            new_expires_in = DEFAULT_ACCESS_TOKEN_EXPIRY_SECONDS
-
-        upstream_token_set.access_token = token_response["access_token"]
-        upstream_token_set.expires_at = time.time() + new_expires_in
-        upstream_token_set.scope = " ".join(
-            parse_scopes(token_response["scope"]) or []
-            if "scope" in token_response
-            else scopes
-        )
-
-        # Handle upstream refresh token rotation
-        new_refresh_expires_in = None
-        if new_upstream_refresh := token_response.get("refresh_token"):
-            if new_upstream_refresh != upstream_token_set.refresh_token:
-                upstream_token_set.refresh_token = new_upstream_refresh
-            if "refresh_expires_in" in token_response and int(
-                token_response["refresh_expires_in"]
-            ):
-                new_refresh_expires_in = int(token_response["refresh_expires_in"])
-                upstream_token_set.refresh_token_expires_at = (
-                    time.time() + new_refresh_expires_in
-                )
-            elif upstream_token_set.refresh_token_expires_at:
-                new_refresh_expires_in = int(
-                    upstream_token_set.refresh_token_expires_at - time.time()
-                )
-            else:
-                new_refresh_expires_in = 60 * 60 * 24 * 30
-                upstream_token_set.refresh_token_expires_at = (
-                    time.time() + new_refresh_expires_in
-                )
-
-        upstream_token_set.raw_token_data = {
-            **upstream_token_set.raw_token_data,
-            **token_response,
-        }
-
-        refresh_ttl = new_refresh_expires_in or (
-            int(upstream_token_set.refresh_token_expires_at - time.time())
-            if upstream_token_set.refresh_token_expires_at
-            else 60 * 60 * 24 * 30
-        )
-        await self._upstream_token_store.put(
-            key=upstream_token_set.upstream_token_id,
-            value=upstream_token_set,
-            ttl=max(refresh_ttl, new_expires_in, 1),
-        )
-
-        return upstream_token_set
+        pass
 
     async def load_access_token(self, token: str) -> AccessToken | None:  # type: ignore[override]  # ty:ignore[invalid-method-override]
         """Validate FastMCP JWT by swapping for upstream token.
@@ -1573,152 +866,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         The FastMCP JWT is a reference token - all authorization data comes
         from validating the upstream token via the TokenVerifier.
         """
-        try:
-            # 1. Verify FastMCP JWT signature and claims
-            payload = self.jwt_issuer.verify_token(token)
-            jti = payload["jti"]
-            upstream_claims = payload.get("upstream_claims")
-
-            # 2. Look up upstream token via JTI mapping
-            jti_mapping = await self._jti_mapping_store.get(key=jti)
-            if not jti_mapping:
-                logger.info(
-                    "JTI mapping not found (token may have expired): jti=%s...",
-                    jti[:16],
-                )
-                return None
-
-            upstream_token_set = await self._upstream_token_store.get(
-                key=jti_mapping.upstream_token_id
-            )
-            if not upstream_token_set:
-                logger.debug(
-                    "Upstream token not found: %s", jti_mapping.upstream_token_id
-                )
-                return None
-
-            # 3. Validate with upstream provider (delegated to TokenVerifier)
-            # This calls the real token validator (GitHub API, JWKS, etc.)
-            verification_token = self._get_verification_token(upstream_token_set)
-            if verification_token is None:
-                logger.debug("No verification token available")
-                return None
-            validated = await self._token_validator.verify_token(verification_token)
-
-            # 4. If upstream validation failed due to token expiry and we
-            # have a refresh token, attempt transparent refresh to avoid
-            # forcing the client into a full re-auth flow. Only refresh on
-            # expiry — other failures (scope mismatch, revocation) won't be
-            # helped by a refresh and would just burn tokens.
-            if (
-                not validated
-                and upstream_token_set.refresh_token
-                and upstream_token_set.expires_at <= time.time()
-            ):
-                try:
-                    token_id = upstream_token_set.upstream_token_id
-
-                    # Advisory lock prevents concurrent requests from racing
-                    # to refresh the same upstream token.
-                    if token_id not in self._refresh_locks:
-                        self._refresh_locks[token_id] = anyio.Lock()
-                    lock = self._refresh_locks[token_id]
-
-                    async with lock:
-                        # Re-read from storage — another task may have
-                        # already refreshed while we waited for the lock.
-                        upstream_token_set = (
-                            await self._upstream_token_store.get(key=token_id)
-                            or upstream_token_set
-                        )
-
-                        verification_token = self._get_verification_token(
-                            upstream_token_set
-                        )
-                        if verification_token is not None:
-                            validated = await self._token_validator.verify_token(
-                                verification_token
-                            )
-
-                        # Only refresh if the (possibly reloaded) token is
-                        # still expired — a non-expiry failure on a fresh
-                        # token (scope mismatch, revocation) won't be
-                        # helped by refreshing.
-                        if (
-                            not validated
-                            and upstream_token_set.expires_at <= time.time()
-                        ):
-                            upstream_token_set = await self._try_transparent_refresh(
-                                upstream_token_set
-                            )
-                            verification_token = self._get_verification_token(
-                                upstream_token_set
-                            )
-                            if verification_token is not None:
-                                validated = await self._token_validator.verify_token(
-                                    verification_token
-                                )
-                except Exception as e:
-                    logger.debug("Transparent upstream refresh failed: %s", e)
-                    # In a distributed deployment, another worker may have
-                    # already refreshed and rotated the token, causing our
-                    # stale refresh token to fail. Re-read and re-validate.
-                    try:
-                        reloaded = await self._upstream_token_store.get(
-                            key=upstream_token_set.upstream_token_id
-                        )
-                        if reloaded:
-                            verification_token = self._get_verification_token(reloaded)
-                            if verification_token is not None:
-                                validated = await self._token_validator.verify_token(
-                                    verification_token
-                                )
-                                if validated:
-                                    upstream_token_set = reloaded
-                    except Exception:
-                        pass
-
-            if not validated:
-                logger.debug("Upstream token validation failed")
-                return None
-
-            # When alternate verification is in use (e.g., id_token
-            # verification in OIDCProxy), ensure the returned AccessToken
-            # carries the upstream access token and its scopes, not the
-            # verification token's values.  We use an intent-based check
-            # rather than value equality because some IdPs issue identical
-            # JWTs for both access_token and id_token, which would cause
-            # the scope patch to be skipped even though it's needed.
-            if self._uses_alternate_verification():
-                validated = validated.model_copy(
-                    update={
-                        "token": upstream_token_set.access_token,
-                        "scopes": upstream_token_set.scope.split()
-                        if upstream_token_set.scope
-                        else validated.scopes,
-                        "expires_at": int(upstream_token_set.expires_at),
-                    }
-                )
-
-            # Propagate upstream claims from the verified FastMCP JWT into the
-            # final AccessToken object. This allows subclasses to access custom
-            # identity data extracted during the initial authorization flow.
-            # We perform a model copy to avoid mutating a potentially cached
-            # reference shared across concurrent requests.
-            if validated and upstream_claims:
-                validated = validated.model_copy(deep=True)
-                if validated.claims is None:
-                    validated.claims = {}
-                validated.claims["upstream_claims"] = upstream_claims
-
-            logger.debug(
-                "Token swap successful for JTI=%s (upstream validated)", jti[:8]
-            )
-            return validated
-
-        except Exception as e:
-            logger.debug("Token swap validation failed: %s", e)
-            return None
+        pass
 
     # -------------------------------------------------------------------------
     # Token Revocation
@@ -1731,44 +879,7 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         For all tokens, attempts upstream revocation if endpoint is configured.
         Access token JTI mappings expire via TTL.
         """
-        # For refresh tokens, delete from local storage by hash
-        if isinstance(token, RefreshToken):
-            await self._refresh_token_store.delete(key=_hash_token(token.token))
-
-        # Attempt upstream revocation if endpoint is configured
-        if self._upstream_revocation_endpoint:
-            try:
-                async with httpx.AsyncClient(
-                    timeout=HTTP_TIMEOUT_SECONDS
-                ) as http_client:
-                    revocation_data: dict[str, str] = {"token": token.token}
-                    request_kwargs: dict[str, Any] = {"data": revocation_data}
-
-                    # Use the factory method when available (supports alternative auth like
-                    # client assertions for managed identity), falling back to basic auth
-                    # or client_id-only for public clients per RFC 7009
-                    oauth_client = self._create_upstream_oauth_client()
-                    if oauth_client.client_secret is not None:
-                        # Client secret is available, use HTTP Basic auth
-                        request_kwargs["auth"] = (
-                            self._upstream_client_id,
-                            oauth_client.client_secret,
-                        )
-                    else:
-                        # No secret; public client must still identify itself per RFC 7009
-                        revocation_data["client_id"] = self._upstream_client_id
-
-                    await http_client.post(
-                        self._upstream_revocation_endpoint,
-                        **request_kwargs,
-                    )
-                    logger.debug("Successfully revoked token with upstream server")
-            except Exception as e:
-                logger.warning("Failed to revoke token with upstream server: %s", e)
-        else:
-            logger.debug("No upstream revocation endpoint configured")
-
-        logger.debug("Token revoked successfully")
+        pass
 
     def get_routes(
         self,
@@ -1913,190 +1024,4 @@ class OAuthProxy(OAuthProvider, ConsentMixin):
         3. Generate our own client code bound to PKCE challenge
         4. Redirect to client's callback with client code and original state
         """
-        try:
-            idp_code = request.query_params.get("code")
-            txn_id = request.query_params.get("state")
-            error = request.query_params.get("error")
-
-            if error:
-                error_description = request.query_params.get("error_description")
-                logger.error(
-                    "IdP callback error: %s - %s",
-                    error,
-                    error_description,
-                )
-                # Show error page to user
-                html_content = create_error_html(
-                    error_title="OAuth Error",
-                    error_message=f"Authentication failed: {error_description or 'Unknown error'}",
-                    error_details={"Error Code": error} if error else None,
-                )
-                return HTMLResponse(content=html_content, status_code=400)
-
-            if not idp_code or not txn_id:
-                logger.error("IdP callback missing code or transaction ID")
-                html_content = create_error_html(
-                    error_title="OAuth Error",
-                    error_message="Missing authorization code or transaction ID from the identity provider.",
-                )
-                return HTMLResponse(content=html_content, status_code=400)
-
-            # Look up transaction data
-            transaction_model = await self._transaction_store.get(key=txn_id)
-            if not transaction_model:
-                logger.error("IdP callback with invalid transaction ID: %s", txn_id)
-                html_content = create_error_html(
-                    error_title="OAuth Error",
-                    error_message="Invalid or expired authorization transaction. Please try authenticating again.",
-                )
-                return HTMLResponse(content=html_content, status_code=400)
-            # Verify consent binding cookie to prevent confused deputy attacks.
-            # When consent is enabled, the browser that approved consent receives
-            # a signed cookie. A different browser (e.g., a victim lured to the
-            # IdP URL) won't have this cookie and will be rejected.
-            if self._require_authorization_consent is True:
-                consent_token = transaction_model.consent_token
-                if not consent_token:
-                    logger.error("Transaction %s missing consent_token", txn_id)
-                    html_content = create_error_html(
-                        error_title="Authorization Error",
-                        error_message="Invalid authorization flow. Please try authenticating again.",
-                    )
-                    return HTMLResponse(content=html_content, status_code=403)
-
-                if not self._verify_consent_binding_cookie(
-                    request, txn_id, consent_token
-                ):
-                    logger.warning(
-                        "Consent binding cookie missing or invalid for transaction %s "
-                        "(possible confused deputy attack)",
-                        txn_id,
-                    )
-                    html_content = create_error_html(
-                        error_title="Authorization Error",
-                        error_message=(
-                            "Authorization session mismatch. This can happen if you "
-                            "followed a link from another person or your session expired. "
-                            "Please try authenticating again."
-                        ),
-                    )
-                    return HTMLResponse(content=html_content, status_code=403)
-
-            transaction = transaction_model.model_dump()
-
-            # Exchange IdP code for tokens (server-side)
-            oauth_client = self._create_upstream_oauth_client()
-
-            try:
-                idp_redirect_uri = (
-                    f"{str(self.base_url).rstrip('/')}{self._redirect_path}"
-                )
-                logger.debug(
-                    f"Exchanging IdP code for tokens with redirect_uri: {idp_redirect_uri}"
-                )
-
-                # Build token exchange parameters
-                token_params = {
-                    "url": self._upstream_token_endpoint,
-                    "code": idp_code,
-                    "redirect_uri": idp_redirect_uri,
-                }
-
-                # Include proxy's code_verifier if we forwarded PKCE
-                proxy_code_verifier = transaction.get("proxy_code_verifier")
-                if proxy_code_verifier:
-                    token_params["code_verifier"] = proxy_code_verifier
-                    logger.debug(
-                        "Including proxy code_verifier in token exchange for transaction %s",
-                        txn_id,
-                    )
-
-                # Allow providers to specify scope for token exchange
-                exchange_scopes = self._prepare_scopes_for_token_exchange(
-                    transaction.get("scopes") or []
-                )
-                if exchange_scopes:
-                    token_params["scope"] = " ".join(exchange_scopes)
-
-                # Add any extra token parameters configured for this proxy
-                if self._extra_token_params:
-                    token_params.update(self._extra_token_params)
-                    logger.debug(
-                        "Adding extra token parameters for transaction %s: %s",
-                        txn_id,
-                        list(self._extra_token_params.keys()),
-                    )
-
-                idp_tokens: dict[str, Any] = await oauth_client.fetch_token(
-                    **token_params
-                )
-
-                logger.debug(
-                    f"Successfully exchanged IdP code for tokens (transaction: {txn_id}, PKCE: {bool(proxy_code_verifier)})"
-                )
-                logger.debug(
-                    "IdP token response: expires_in=%s, has_refresh_token=%s",
-                    idp_tokens.get("expires_in"),
-                    "refresh_token" in idp_tokens,
-                )
-
-            except Exception as e:
-                logger.error("IdP token exchange failed: %s", e)
-                html_content = create_error_html(
-                    error_title="OAuth Error",
-                    error_message=f"Token exchange with identity provider failed: {e}",
-                )
-                return HTMLResponse(content=html_content, status_code=500)
-
-            # Generate our own authorization code for the client
-            client_code = secrets.token_urlsafe(32)
-            code_expires_at = int(time.time() + DEFAULT_AUTH_CODE_EXPIRY_SECONDS)
-
-            # Store client code with PKCE challenge and IdP tokens
-            await self._code_store.put(
-                key=client_code,
-                value=ClientCode(
-                    code=client_code,
-                    client_id=transaction["client_id"],
-                    redirect_uri=transaction["client_redirect_uri"],
-                    code_challenge=transaction["code_challenge"],
-                    code_challenge_method=transaction["code_challenge_method"],
-                    scopes=transaction["scopes"],
-                    idp_tokens=idp_tokens,
-                    expires_at=code_expires_at,
-                    created_at=time.time(),
-                ),
-                ttl=DEFAULT_AUTH_CODE_EXPIRY_SECONDS,  # Auto-expire after 5 minutes
-            )
-
-            # Clean up transaction
-            await self._transaction_store.delete(key=txn_id)
-
-            # Build client callback URL with our code and original state
-            client_redirect_uri = transaction["client_redirect_uri"]
-            client_state = transaction["client_state"]
-
-            callback_params = {
-                "code": client_code,
-                "state": client_state,
-            }
-
-            # Add query parameters to client redirect URI
-            separator = "&" if "?" in client_redirect_uri else "?"
-            client_callback_url = (
-                f"{client_redirect_uri}{separator}{urlencode(callback_params)}"
-            )
-
-            logger.debug(f"Forwarding to client callback for transaction {txn_id}")
-
-            response = RedirectResponse(url=client_callback_url, status_code=302)
-            self._clear_consent_binding_cookie(request, response, txn_id)
-            return response
-
-        except Exception as e:
-            logger.error("Error in IdP callback handler: %s", e, exc_info=True)
-            html_content = create_error_html(
-                error_title="OAuth Error",
-                error_message="Internal server error during OAuth callback processing. Please try again.",
-            )
-            return HTMLResponse(content=html_content, status_code=500)
+        pass

@@ -397,30 +397,7 @@ async def enable_components(
         components: Component types to match (e.g., {"tool", "prompt"}).
         match_all: If True, matches all components regardless of other criteria.
     """
-    # Normalize empty sets to None (empty = match all)
-    components = components if components else None
-
-    # Load current rules
-    rules = await get_visibility_rules(context)
-
-    # Create new rule dict
-    rule: dict[str, Any] = {
-        "enabled": True,
-        "names": list(names) if names else None,
-        "keys": list(keys) if keys else None,
-        "version": (
-            {"gte": version.gte, "lt": version.lt, "eq": version.eq}
-            if version
-            else None
-        ),
-        "tags": list(tags) if tags else None,
-        "components": list(components) if components else None,
-        "match_all": match_all,
-    }
-
-    # Add and save (notifications sent by save_visibility_rules)
-    rules.append(rule)
-    await save_visibility_rules(context, rules, components=components)
+    pass
 
 
 async def disable_components(
@@ -451,30 +428,7 @@ async def disable_components(
         components: Component types to match (e.g., {"tool", "prompt"}).
         match_all: If True, matches all components regardless of other criteria.
     """
-    # Normalize empty sets to None (empty = match all)
-    components = components if components else None
-
-    # Load current rules
-    rules = await get_visibility_rules(context)
-
-    # Create new rule dict
-    rule: dict[str, Any] = {
-        "enabled": False,
-        "names": list(names) if names else None,
-        "keys": list(keys) if keys else None,
-        "version": (
-            {"gte": version.gte, "lt": version.lt, "eq": version.eq}
-            if version
-            else None
-        ),
-        "tags": list(tags) if tags else None,
-        "components": list(components) if components else None,
-        "match_all": match_all,
-    }
-
-    # Add and save (notifications sent by save_visibility_rules)
-    rules.append(rule)
-    await save_visibility_rules(context, rules, components=components)
+    pass
 
 
 async def reset_visibility(context: Context) -> None:

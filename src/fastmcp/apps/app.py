@@ -77,29 +77,7 @@ def _make_resolver(app_name: str | None = None) -> Any:
         return local_name
 
     def _resolve_tool_ref(fn: Any) -> Any:
-        from prefab_ui.app import ResolvedTool
-
-        if isinstance(fn, str):
-            return ResolvedTool(name=_prefix(fn))
-
-        fmeta: Any = None
-        try:
-            from fastmcp.decorators import get_fastmcp_meta
-
-            fmeta = get_fastmcp_meta(fn)
-        except Exception:
-            pass
-
-        if fmeta is not None:
-            name: str | None = getattr(fmeta, "name", None)
-            if name is not None:
-                return ResolvedTool(name=_prefix(name))
-
-        fn_name = getattr(fn, "__name__", None)
-        if fn_name is not None:
-            return ResolvedTool(name=_prefix(fn_name))
-
-        raise ValueError(f"Cannot resolve tool reference: {fn!r}")
+        pass
 
     return _resolve_tool_ref
 
@@ -215,32 +193,7 @@ class FastMCPApp(Provider):
         )
 
         def _register(fn: F, tool_name: str | None) -> F:
-            resolved_name = tool_name or getattr(fn, "__name__", None)
-            if resolved_name is None:
-                raise ValueError(f"Cannot determine tool name for {fn!r}")
-
-            from fastmcp.apps.config import AppConfig, app_config_to_meta_dict
-            from fastmcp.server.providers.addressing import hash_tool
-
-            app_config = AppConfig(visibility=visibility)
-            meta: dict[str, Any] = {
-                "ui": app_config_to_meta_dict(app_config),
-                "fastmcp": {
-                    "app": self.name,
-                    "_tool_hash": hash_tool(self.name, resolved_name),
-                },
-            }
-
-            tool_obj = Tool.from_function(
-                fn,
-                name=resolved_name,
-                description=description,
-                meta=meta,
-                timeout=timeout,
-                auth=auth,
-            )
-            self._local._add_component(tool_obj)
-            return fn
+            pass
 
         return _dispatch_decorator(name_or_fn, name, _register, "tool")
 
@@ -308,45 +261,7 @@ class FastMCPApp(Provider):
             @app.ui("my_dashboard")
             def dashboard() -> Component: ...
         """
-
-        def _register(fn: F, tool_name: str | None) -> F:
-            from fastmcp.apps.config import AppConfig, app_config_to_meta_dict
-            from fastmcp.server.providers.addressing import hash_tool
-            from fastmcp.server.providers.local_provider.decorators.tools import (
-                PREFAB_RENDERER_URI,
-            )
-
-            resolved = tool_name or getattr(fn, "__name__", None) or "unknown"
-            app_config = AppConfig(
-                resource_uri=PREFAB_RENDERER_URI,
-                visibility=["model"],
-            )
-
-            meta: dict[str, Any] = {
-                "ui": app_config_to_meta_dict(app_config),
-                "fastmcp": {
-                    "app": self.name,
-                    "_tool_hash": hash_tool(self.name, resolved),
-                },
-            }
-
-            tool_obj = Tool.from_function(
-                fn,
-                name=tool_name,
-                description=description,
-                title=title,
-                tags=tags,
-                icons=icons,
-                annotations=annotations,
-                meta=meta,
-                timeout=timeout,
-                auth=auth,
-            )
-            self._local._add_component(tool_obj)
-
-            return fn
-
-        return _dispatch_decorator(name_or_fn, name, _register, "ui")
+        pass
 
     # ------------------------------------------------------------------
     # Programmatic tool addition

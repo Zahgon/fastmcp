@@ -41,30 +41,8 @@ class PingMiddleware(Middleware):
 
     async def on_message(self, context: MiddlewareContext, call_next: CallNext) -> Any:
         """Start ping task on first message from a session."""
-        if (
-            context.fastmcp_context is None
-            or context.fastmcp_context.request_context is None
-        ):
-            return await call_next(context)
-
-        session = context.fastmcp_context.session
-        session_id = id(session)
-
-        async with self._lock:
-            if session_id not in self._active_sessions:
-                # _subscription_task_group is added by MiddlewareServerSession
-                tg = session._subscription_task_group  # type: ignore[attr-defined]  # ty:ignore[unresolved-attribute]
-                if tg is not None:
-                    self._active_sessions.add(session_id)
-                    tg.start_soon(self._ping_loop, session, session_id)
-
-        return await call_next(context)
+        pass
 
     async def _ping_loop(self, session: Any, session_id: int) -> None:
         """Send periodic pings until session ends."""
-        try:
-            while True:
-                await anyio.sleep(self.interval_ms / 1000)
-                await session.send_ping()
-        finally:
-            self._active_sessions.discard(session_id)
+        pass

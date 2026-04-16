@@ -107,7 +107,7 @@ logger = get_logger(__name__)
 # This fires even when validate_input=False. Suppress it.
 class _SuppressUnlistedToolWarning(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        return "not listed, no validation" not in record.getMessage()
+        pass
 
 
 logging.getLogger("mcp.server.lowlevel.server").addFilter(
@@ -141,15 +141,7 @@ _REMOVED_KWARGS: dict[str, str] = {
 
 def _check_removed_kwargs(kwargs: dict[str, Any]) -> None:
     """Raise helpful TypeErrors for kwargs removed in v3."""
-    for key in kwargs:
-        if key in _REMOVED_KWARGS:
-            raise TypeError(
-                f"FastMCP() no longer accepts `{key}`. {_REMOVED_KWARGS[key]}"
-            )
-    if kwargs:
-        raise TypeError(
-            f"FastMCP() got unexpected keyword argument(s): {', '.join(repr(k) for k in kwargs)}"
-        )
+    pass
 
 
 Transport = Literal["stdio", "http", "sse", "streamable-http"]
@@ -221,16 +213,7 @@ def _is_app_visible(tool: Tool) -> bool:
     hashed-name path is an opt-in mechanism for FastMCPApp backend tools,
     not a general bypass for arbitrary tools.
     """
-    meta = tool.meta
-    if not meta:
-        return False
-    ui = meta.get("ui")
-    if not isinstance(ui, dict):
-        return False
-    visibility = ui.get("visibility")
-    if not isinstance(visibility, list):
-        return False
-    return "app" in visibility
+    pass
 
 
 @asynccontextmanager
@@ -243,7 +226,7 @@ async def default_lifespan(server: FastMCP[LifespanResultT]) -> AsyncIterator[An
     Returns:
         An empty dictionary as the lifespan result.
     """
-    yield {}
+    pass
 
 
 def _lifespan_proxy(
@@ -252,22 +235,7 @@ def _lifespan_proxy(
     [LowLevelServer[LifespanResultT]], AbstractAsyncContextManager[LifespanResultT]
 ]:
     @asynccontextmanager
-    async def wrap(
-        low_level_server: LowLevelServer[LifespanResultT],
-    ) -> AsyncIterator[LifespanResultT]:
-        if fastmcp_server._lifespan is default_lifespan:
-            yield {}  # ty:ignore[invalid-yield]
-            return
-
-        if not fastmcp_server._lifespan_result_set:
-            raise RuntimeError(
-                "FastMCP server has a lifespan defined but no lifespan result is set, which means the server's context manager was not entered. "
-                " Are you running the server in a way that supports lifespans? If so, please file an issue at https://github.com/PrefectHQ/fastmcp/issues."
-            )
-
-        yield fastmcp_server._lifespan_result  # ty:ignore[invalid-yield]
-
-    return wrap
+    pass
 
 
 class StateValue(FastMCPBaseModel):
@@ -427,15 +395,15 @@ class FastMCP(
 
     @property
     def name(self) -> str:
-        return self._mcp_server.name
+        pass
 
     @property
     def instructions(self) -> str | None:
-        return self._mcp_server.instructions
+        pass
 
     @instructions.setter
     def instructions(self, value: str | None) -> None:
-        self._mcp_server.instructions = value
+        pass
 
     @property
     def version(self) -> str | None:
@@ -443,14 +411,11 @@ class FastMCP(
 
     @property
     def website_url(self) -> str | None:
-        return self._mcp_server.website_url
+        pass
 
     @property
     def icons(self) -> list[mcp.types.Icon]:
-        if self._mcp_server.icons is None:
-            return []
-        else:
-            return list(self._mcp_server.icons)
+        pass
 
     @property
     def local_provider(self) -> LocalProvider:
@@ -462,7 +427,7 @@ class FastMCP(
             mcp.local_provider.remove_resource("data://info")
             mcp.local_provider.remove_prompt("my_prompt")
         """
-        return self._local_provider
+        pass
 
     async def _run_middleware(
         self,
@@ -476,7 +441,7 @@ class FastMCP(
         return await chain(context)
 
     def add_middleware(self, middleware: Middleware) -> None:
-        self.middleware.append(middleware)
+        pass
 
     def add_provider(self, provider: Provider, *, namespace: str = "") -> None:
         """Add a provider for dynamic tools, resources, and prompts.
@@ -575,14 +540,7 @@ class FastMCP(
         .. deprecated::
             Use ``add_transform(ToolTransform({...}))`` instead.
         """
-        if fastmcp.settings.deprecation_warnings:
-            warnings.warn(
-                "add_tool_transformation is deprecated. Use "
-                "server.add_transform(ToolTransform({tool_name: config})) instead.",
-                FastMCPDeprecationWarning,
-                stacklevel=2,
-            )
-        self.add_transform(ToolTransform({tool_name: transformation}))
+        pass
 
     def remove_tool_transformation(self, _tool_name: str) -> None:
         """Remove a tool transformation.
@@ -590,14 +548,7 @@ class FastMCP(
         .. deprecated::
             Tool transformations are now immutable. Use enable/disable controls instead.
         """
-        if fastmcp.settings.deprecation_warnings:
-            warnings.warn(
-                "remove_tool_transformation is deprecated and has no effect. "
-                "Transforms are immutable once added. Use server.disable(keys=[...]) "
-                "to hide tools instead.",
-                FastMCPDeprecationWarning,
-                stacklevel=2,
-            )
+        pass
 
     async def list_tools(self, *, run_middleware: bool = True) -> Sequence[Tool]:
         """List all enabled tools from providers.
@@ -1562,21 +1513,7 @@ class FastMCP(
         Raises:
             NotFoundError: If no matching tool is found.
         """
-        if fastmcp.settings.deprecation_warnings:
-            warnings.warn(
-                "remove_tool() is deprecated. Use "
-                "mcp.local_provider.remove_tool(name) instead.",
-                FastMCPDeprecationWarning,
-                stacklevel=2,
-            )
-        try:
-            self._local_provider.remove_tool(name, version)
-        except KeyError:
-            if version is None:
-                raise NotFoundError(f"Tool {name!r} not found") from None
-            raise NotFoundError(
-                f"Tool {name!r} version {version!r} not found"
-            ) from None
+        pass
 
     @overload
     def tool(
@@ -2151,64 +2088,7 @@ class FastMCP(
             prefix: Optional prefix to use for the imported server's objects. If None,
                 objects are imported with their original names.
         """
-        import warnings
-
-        warnings.warn(
-            "import_server is deprecated, use mount() instead",
-            FastMCPDeprecationWarning,
-            stacklevel=2,
-        )
-
-        def add_resource_prefix(uri: str, prefix: str) -> str:
-            """Add prefix to resource URI: protocol://path → protocol://prefix/path."""
-            match = URI_PATTERN.match(uri)
-            if match:
-                protocol, path = match.groups()
-                return f"{protocol}{prefix}/{path}"
-            return uri
-
-        # Import tools from the server
-        for tool in await server.list_tools():
-            if prefix:
-                tool = tool.model_copy(update={"name": f"{prefix}_{tool.name}"})
-            self.add_tool(tool)
-
-        # Import resources and templates from the server
-        for resource in await server.list_resources():
-            if prefix:
-                new_uri = add_resource_prefix(str(resource.uri), prefix)
-                resource = resource.model_copy(update={"uri": new_uri})
-            self.add_resource(resource)
-
-        for template in await server.list_resource_templates():
-            if prefix:
-                new_uri_template = add_resource_prefix(template.uri_template, prefix)
-                template = template.model_copy(
-                    update={"uri_template": new_uri_template}
-                )
-            self.add_template(template)
-
-        # Import prompts from the server
-        for prompt in await server.list_prompts():
-            if prefix:
-                prompt = prompt.model_copy(update={"name": f"{prefix}_{prompt.name}"})
-            self.add_prompt(prompt)
-
-        if server._lifespan != default_lifespan:
-            from warnings import warn
-
-            warn(
-                message="When importing from a server with a lifespan, the lifespan from the imported server will not be used.",
-                category=RuntimeWarning,
-                stacklevel=2,
-            )
-
-        if prefix:
-            logger.debug(
-                f"[{self.name}] Imported server {server.name} with prefix '{prefix}'"
-            )
-        else:
-            logger.debug(f"[{self.name}] Imported server {server.name}")
+        pass
 
     @classmethod
     def from_openapi(
@@ -2247,19 +2127,7 @@ class FastMCP(
         Returns:
             A FastMCP server with an OpenAPIProvider attached.
         """
-        from .providers.openapi import OpenAPIProvider
-
-        provider: Provider = OpenAPIProvider(
-            openapi_spec=openapi_spec,
-            client=client,
-            route_maps=route_maps,
-            route_map_fn=route_map_fn,
-            mcp_component_fn=mcp_component_fn,
-            mcp_names=mcp_names,
-            tags=tags,
-            validate_output=validate_output,
-        )
-        return cls(name=name, providers=[provider], **settings)
+        pass
 
     @classmethod
     def from_fastapi(
@@ -2292,29 +2160,7 @@ class FastMCP(
         Returns:
             A FastMCP server with an OpenAPIProvider attached.
         """
-        from .providers.openapi import OpenAPIProvider
-
-        if httpx_client_kwargs is None:
-            httpx_client_kwargs = {}
-        httpx_client_kwargs.setdefault("base_url", "http://fastapi")
-
-        client = httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app),
-            **httpx_client_kwargs,
-        )
-
-        server_name = name or app.title
-
-        provider: Provider = OpenAPIProvider(
-            openapi_spec=app.openapi(),
-            client=client,
-            route_maps=route_maps,
-            route_map_fn=route_map_fn,
-            mcp_component_fn=mcp_component_fn,
-            mcp_names=mcp_names,
-            tags=tags,
-        )
-        return cls(name=server_name, providers=[provider], **settings)
+        pass
 
     @classmethod
     def as_proxy(
@@ -2355,12 +2201,7 @@ class FastMCP(
 
     @classmethod
     def generate_name(cls, name: str | None = None) -> str:
-        class_name = cls.__name__
-
-        if name is None:
-            return f"{class_name}-{secrets.token_hex(2)}"
-        else:
-            return f"{class_name}-{name}-{secrets.token_hex(2)}"
+        pass
 
 
 # -----------------------------------------------------------------------------

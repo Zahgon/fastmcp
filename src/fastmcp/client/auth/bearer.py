@@ -13,5 +13,4 @@ class BearerAuth(httpx.Auth):
         self.token = SecretStr(token)
 
     def auth_flow(self, request):
-        request.headers["Authorization"] = f"Bearer {self.token.get_secret_value()}"
-        yield request
+        pass

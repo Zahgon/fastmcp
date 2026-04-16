@@ -155,22 +155,7 @@ class PropelAuthProvider(RemoteAuthProvider):
 
         async def oauth_authorization_server_metadata(request):
             """Forward PropelAuth OAuth authorization server metadata"""
-            try:
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(
-                        f"{self._normalized_auth_url}/.well-known/oauth-authorization-server/oauth/2.1"
-                    )
-                    response.raise_for_status()
-                    metadata = response.json()
-                    return JSONResponse(metadata)
-            except Exception as e:
-                return JSONResponse(
-                    {
-                        "error": "server_error",
-                        "error_description": f"Failed to fetch PropelAuth metadata: {e}",
-                    },
-                    status_code=500,
-                )
+            pass
 
         routes.append(
             Route(
@@ -184,20 +169,7 @@ class PropelAuthProvider(RemoteAuthProvider):
 
     async def verify_token(self, token: str) -> AccessToken | None:
         """Verify token and check the ``aud`` claim against the configured resource."""
-        result = await super().verify_token(token)
-        if result is None or self._resource is None:
-            return result
-
-        aud = result.claims.get("aud")
-        if aud != self._resource:
-            logger.debug(
-                "PropelAuthProvider: token audience %r does not match resource %s",
-                aud,
-                self._resource,
-            )
-            return None
-
-        return result
+        pass
 
     def _create_token_verifier(
         self,
@@ -208,27 +180,4 @@ class PropelAuthProvider(RemoteAuthProvider):
         introspection_overrides: PropelAuthTokenIntrospectionOverrides | None,
     ) -> IntrospectionTokenVerifier:
         # Being defensive here, check for only the fields we are expecting
-        safe_overrides: PropelAuthTokenIntrospectionOverrides = {}
-        if introspection_overrides is not None:
-            if "timeout_seconds" in introspection_overrides:
-                safe_overrides["timeout_seconds"] = introspection_overrides[
-                    "timeout_seconds"
-                ]
-            if "cache_ttl_seconds" in introspection_overrides:
-                safe_overrides["cache_ttl_seconds"] = introspection_overrides[
-                    "cache_ttl_seconds"
-                ]
-            if "max_cache_size" in introspection_overrides:
-                safe_overrides["max_cache_size"] = introspection_overrides[
-                    "max_cache_size"
-                ]
-            if "http_client" in introspection_overrides:
-                safe_overrides["http_client"] = introspection_overrides["http_client"]
-
-        return IntrospectionTokenVerifier(
-            introspection_url=introspection_url,
-            client_id=client_id,
-            client_secret=client_secret,
-            required_scopes=required_scopes,
-            **safe_overrides,
-        )
+        pass

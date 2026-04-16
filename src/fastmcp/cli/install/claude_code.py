@@ -67,7 +67,7 @@ def find_claude_command() -> str | None:
 
 def check_claude_code_available() -> bool:
     """Check if Claude Code CLI is available."""
-    return find_claude_command() is not None
+    pass
 
 
 def install_claude_code(

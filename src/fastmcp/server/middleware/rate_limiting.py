@@ -44,18 +44,7 @@ class TokenBucketRateLimiter:
         Returns:
             True if tokens were available and consumed, False otherwise
         """
-        async with self._lock:
-            now = time.time()
-            elapsed = now - self.last_refill
-
-            # Add tokens based on elapsed time
-            self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)
-            self.last_refill = now
-
-            if self.tokens >= tokens:
-                self.tokens -= tokens
-                return True
-            return False
+        pass
 
 
 class SlidingWindowRateLimiter:
@@ -75,18 +64,7 @@ class SlidingWindowRateLimiter:
 
     async def is_allowed(self) -> bool:
         """Check if a request is allowed."""
-        async with self._lock:
-            now = time.time()
-            cutoff = now - self.window_seconds
-
-            # Remove old requests outside the window
-            while self.requests and self.requests[0] < cutoff:
-                self.requests.popleft()
-
-            if len(self.requests) < self.max_requests:
-                self.requests.append(now)
-                return True
-            return False
+        pass
 
 
 class RateLimitingMiddleware(Middleware):
@@ -145,26 +123,11 @@ class RateLimitingMiddleware(Middleware):
 
     def _get_client_identifier(self, context: MiddlewareContext) -> str:
         """Get client identifier for rate limiting."""
-        if self.get_client_id:
-            return self.get_client_id(context)
-        return "global"
+        pass
 
     async def on_request(self, context: MiddlewareContext, call_next: CallNext) -> Any:
         """Apply rate limiting to requests."""
-        if self.global_limit:
-            # Global rate limiting
-            allowed = await self.global_limiter.consume()
-            if not allowed:
-                raise RateLimitError("Global rate limit exceeded")
-        else:
-            # Per-client rate limiting
-            client_id = self._get_client_identifier(context)
-            limiter = self.limiters[client_id]
-            allowed = await limiter.consume()
-            if not allowed:
-                raise RateLimitError(f"Rate limit exceeded for client: {client_id}")
-
-        return await call_next(context)
+        pass
 
 
 class SlidingWindowRateLimitingMiddleware(Middleware):
@@ -212,20 +175,8 @@ class SlidingWindowRateLimitingMiddleware(Middleware):
 
     def _get_client_identifier(self, context: MiddlewareContext) -> str:
         """Get client identifier for rate limiting."""
-        if self.get_client_id:
-            return self.get_client_id(context)
-        return "global"
+        pass
 
     async def on_request(self, context: MiddlewareContext, call_next: CallNext) -> Any:
         """Apply sliding window rate limiting to requests."""
-        client_id = self._get_client_identifier(context)
-        limiter = self.limiters[client_id]
-
-        allowed = await limiter.is_allowed()
-        if not allowed:
-            raise RateLimitError(
-                f"Rate limit exceeded: {self.max_requests} requests per "
-                f"{self.window_seconds // 60} minutes for client: {client_id}"
-            )
-
-        return await call_next(context)
+        pass

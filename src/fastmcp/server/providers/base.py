@@ -75,7 +75,7 @@ class Provider:
     @property
     def transforms(self) -> list[Transform]:
         """All transforms applied to components from this provider."""
-        return list(self._transforms)
+        pass
 
     def add_transform(self, transform: Transform) -> None:
         """Add a transform to this provider.
@@ -167,7 +167,7 @@ class Provider:
         """
 
         async def base(n: str, version: VersionSpec | None = None) -> Tool | None:
-            return await self._get_tool(n, version)
+            pass
 
         chain = base
         for transform in self.transforms:
@@ -184,22 +184,7 @@ class Provider:
         Returns:
             The tool if found and tagged with the given app name, else None.
         """
-        tool = await self._get_tool(tool_name)
-        if tool is not None:
-            meta = tool.meta or {}
-            fastmcp_meta = meta.get("fastmcp")
-            ui_meta = meta.get("ui")
-            # Must match app name AND have app visibility (not model-only)
-            visibility = (
-                ui_meta.get("visibility", []) if isinstance(ui_meta, dict) else []
-            )
-            if (
-                isinstance(fastmcp_meta, dict)
-                and fastmcp_meta.get("app") == app_name
-                and "app" in visibility
-            ):
-                return tool
-        return None
+        pass
 
     async def get_tool_by_hash(self, tool_hash: str, tool_name: str) -> Tool | None:
         """Look up an app-visible tool by its deterministic hash.
@@ -251,7 +236,7 @@ class Provider:
         """
 
         async def base(u: str, version: VersionSpec | None = None) -> Resource | None:
-            return await self._get_resource(u, version)
+            pass
 
         chain = base
         for transform in self.transforms:
@@ -288,7 +273,7 @@ class Provider:
         async def base(
             u: str, version: VersionSpec | None = None
         ) -> ResourceTemplate | None:
-            return await self._get_resource_template(u, version)
+            pass
 
         chain = base
         for transform in self.transforms:
@@ -323,7 +308,7 @@ class Provider:
         """
 
         async def base(n: str, version: VersionSpec | None = None) -> Prompt | None:
-            return await self._get_prompt(n, version)
+            pass
 
         chain = base
         for transform in self.transforms:

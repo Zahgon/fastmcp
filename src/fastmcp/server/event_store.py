@@ -103,34 +103,7 @@ class EventStore(SDKEventStore):
         Returns:
             The generated event ID for the stored event
         """
-        event_id = str(uuid4())
-
-        # Store the event entry
-        entry = EventEntry(
-            event_id=event_id,
-            stream_id=stream_id,
-            message=message.model_dump(mode="json") if message else None,
-        )
-        await self._event_store.put(key=event_id, value=entry, ttl=self._ttl)
-
-        # Update stream's event list
-        stream_data = await self._stream_store.get(key=stream_id)
-        event_ids = stream_data.event_ids if stream_data else []
-        event_ids.append(event_id)
-
-        # Trim to max events (delete old events)
-        if len(event_ids) > self._max_events_per_stream:
-            for old_id in event_ids[: -self._max_events_per_stream]:
-                await self._event_store.delete(key=old_id)
-            event_ids = event_ids[-self._max_events_per_stream :]
-
-        await self._stream_store.put(
-            key=stream_id,
-            value=StreamEventList(event_ids=event_ids),
-            ttl=self._ttl,
-        )
-
-        return event_id
+        pass
 
     async def replay_events_after(
         self,
@@ -146,32 +119,4 @@ class EventStore(SDKEventStore):
         Returns:
             The stream ID of the replayed events, or None if the event ID was not found
         """
-        # Look up the event to find its stream
-        entry = await self._event_store.get(key=last_event_id)
-        if not entry:
-            logger.warning(f"Event ID {last_event_id} not found in store")
-            return None
-
-        stream_id = entry.stream_id
-        stream_data = await self._stream_store.get(key=stream_id)
-        if not stream_data:
-            logger.warning(f"Stream {stream_id} not found in store")
-            return None
-
-        event_ids = stream_data.event_ids
-
-        # Find events after last_event_id
-        try:
-            start_idx = event_ids.index(last_event_id) + 1
-        except ValueError:
-            logger.warning(f"Event ID {last_event_id} not found in stream {stream_id}")
-            return None
-
-        # Replay events after the last one
-        for event_id in event_ids[start_idx:]:
-            event = await self._event_store.get(key=event_id)
-            if event and event.message:
-                msg = JSONRPCMessage.model_validate(event.message)
-                await send_callback(EventMessage(msg, event.event_id))
-
-        return stream_id
+        pass

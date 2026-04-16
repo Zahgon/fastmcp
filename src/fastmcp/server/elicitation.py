@@ -43,53 +43,11 @@ class ElicitationJsonSchema(GenerateJsonSchema):
 
     def generate_inner(self, schema: core_schema.CoreSchema) -> JsonSchemaValue:  # type: ignore[override]  # ty:ignore[invalid-method-override]
         """Override to prevent ref generation for enums and handle list schemas."""
-        # For enum schemas, bypass the ref mechanism entirely
-        if schema["type"] == "enum":
-            # Directly call our custom enum_schema without going through handler
-            # This prevents the ref/defs mechanism from being invoked
-            return self.enum_schema(schema)
-        # For list schemas, check if items are enums
-        if schema["type"] == "list":
-            return self.list_schema(schema)
-        # For all other types, use the default implementation
-        return super().generate_inner(schema)
+        pass
 
     def list_schema(self, schema: core_schema.ListSchema) -> JsonSchemaValue:
         """Generate schema for list types, detecting enum items for multi-select."""
-        items_schema = schema.get("items_schema")
-
-        # Check if items are enum/Literal
-        if items_schema and items_schema.get("type") == "enum":
-            # Generate array with enum items
-            items = self.enum_schema(items_schema)  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
-            # If items have oneOf pattern, convert to anyOf for multi-select per SEP-1330
-            if "oneOf" in items:
-                items = {"anyOf": items["oneOf"]}
-            return {
-                "type": "array",
-                "items": items,  # Will be {"enum": [...]} or {"anyOf": [...]}
-            }
-
-        # Check if items are Literal (which Pydantic represents differently)
-        if items_schema:
-            # Try to detect Literal patterns
-            items_result = super().generate_inner(items_schema)
-            # If it's a const pattern or enum-like, allow it
-            if (
-                "const" in items_result
-                or "enum" in items_result
-                or "oneOf" in items_result
-            ):
-                # Convert oneOf to anyOf for multi-select
-                if "oneOf" in items_result:
-                    items_result = {"anyOf": items_result["oneOf"]}
-                return {
-                    "type": "array",
-                    "items": items_result,
-                }
-
-        # Default behavior for non-enum arrays
-        return super().list_schema(schema)
+        pass
 
     def enum_schema(self, schema: core_schema.EnumSchema) -> JsonSchemaValue:
         """Generate inline enum schema.
@@ -97,8 +55,7 @@ class ElicitationJsonSchema(GenerateJsonSchema):
         Always generates enum pattern: `{"enum": [value, ...]}`
         Titled enums are handled separately via dict-based syntax in ctx.elicit().
         """
-        # Get the base schema from parent - always use simple enum pattern
-        return super().enum_schema(schema)
+        pass
 
 
 # we can't use the low-level AcceptedElicitation because it only works with BaseModels

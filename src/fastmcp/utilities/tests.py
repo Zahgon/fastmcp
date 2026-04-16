@@ -55,20 +55,7 @@ def temporary_settings(**kwargs: Any):
 
 def _run_server(mcp_server: FastMCP, transport: Literal["sse"], port: int) -> None:
     # Some Starlette apps are not pickleable, so we need to create them here based on the indicated transport
-    if transport == "sse":
-        app = mcp_server.http_app(transport="sse")
-    else:
-        raise ValueError(f"Invalid transport: {transport}")
-    uvicorn_server = uvicorn.Server(
-        config=uvicorn.Config(
-            app=app,
-            host="127.0.0.1",
-            port=port,
-            log_level="error",
-            ws="websockets-sansio",
-        )
-    )
-    uvicorn_server.run()
+    pass
 
 
 @contextmanager
@@ -237,34 +224,8 @@ class HeadlessOAuth(OAuth):
 
     async def redirect_handler(self, authorization_url: str) -> None:
         """Make HTTP request to authorization URL and store response for callback handler."""
-        async with httpx.AsyncClient() as client:
-            response = await client.get(authorization_url, follow_redirects=False)
-            self._stored_response = response
+        pass
 
     async def callback_handler(self) -> tuple[str, str | None]:
         """Parse stored response and return (auth_code, state)."""
-        if not self._stored_response:
-            raise RuntimeError(
-                "No authorization response stored. redirect_handler must be called first."
-            )
-
-        response = self._stored_response
-
-        # Extract auth code from redirect location
-        if response.status_code == 302:
-            redirect_url = response.headers["location"]
-            parsed = urlparse(redirect_url)
-            query_params = parse_qs(parsed.query)
-
-            if "error" in query_params:
-                error = query_params["error"][0]
-                error_desc = query_params.get("error_description", ["Unknown error"])[0]
-                raise RuntimeError(
-                    f"OAuth authorization failed: {error} - {error_desc}"
-                )
-
-            auth_code = query_params["code"][0]
-            state = query_params.get("state", [None])[0]
-            return auth_code, state
-        else:
-            raise RuntimeError(f"Authorization failed: {response.status_code}")
+        pass

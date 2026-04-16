@@ -38,7 +38,7 @@ class ToolInjectionMiddleware(Middleware):
         call_next: CallNext[mcp.types.ListToolsRequest, Sequence[Tool]],
     ) -> Sequence[Tool]:
         """Inject tools into the response."""
-        return [*self._tools_to_inject, *await call_next(context)]
+        pass
 
     @override
     async def on_call_tool(
@@ -47,11 +47,7 @@ class ToolInjectionMiddleware(Middleware):
         call_next: CallNext[mcp.types.CallToolRequestParams, ToolResult],
     ) -> ToolResult:
         """Intercept tool calls to injected tools."""
-        if context.message.name in self._tools_to_inject_by_name:
-            tool = self._tools_to_inject_by_name[context.message.name]
-            return await tool.run(arguments=context.message.arguments or {})
-
-        return await call_next(context)
+        pass
 
 
 async def list_prompts(context: Context) -> list[Prompt]:

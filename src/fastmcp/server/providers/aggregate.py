@@ -191,16 +191,7 @@ class AggregateProvider(Provider):
 
     async def get_app_tool(self, app_name: str, tool_name: str) -> Tool | None:
         """Query all child providers for an app tool."""
-        results = await gather(
-            *[p.get_app_tool(app_name, tool_name) for p in self.providers],
-            return_exceptions=True,
-        )
-        for r in results:
-            if isinstance(r, BaseException):
-                continue
-            if r is not None:
-                return r
-        return None
+        pass
 
     async def get_tool_by_hash(self, tool_hash: str, tool_name: str) -> Tool | None:
         """Query all child providers for a tool matching a hash."""

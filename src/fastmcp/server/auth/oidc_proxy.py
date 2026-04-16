@@ -110,35 +110,7 @@ class OIDCConfiguration(BaseModel):
     @model_validator(mode="after")
     def _enforce_strict(self) -> Self:
         """Enforce strict rules."""
-        if not self.strict:
-            return self
-
-        def enforce(attr: str, is_url: bool = False) -> None:
-            value = getattr(self, attr, None)
-            if not value:
-                message = f"Missing required configuration metadata: {attr}"
-                logger.error(message)
-                raise ValueError(message)
-
-            if not is_url or isinstance(value, AnyHttpUrl):
-                return
-
-            try:
-                AnyHttpUrl(value)
-            except Exception as e:
-                message = f"Invalid URL for configuration metadata: {attr}"
-                logger.error(message)
-                raise ValueError(message) from e
-
-        enforce("issuer", True)
-        enforce("authorization_endpoint", True)
-        enforce("token_endpoint", True)
-        enforce("jwks_uri", True)
-        enforce("response_types_supported")
-        enforce("subject_types_supported")
-        enforce("id_token_signing_alg_values_supported")
-
-        return self
+        pass
 
     @classmethod
     def get_oidc_configuration(
@@ -151,24 +123,7 @@ class OIDCConfiguration(BaseModel):
             strict: The strict flag for the configuration
             timeout_seconds: HTTP request timeout in seconds
         """
-        get_kwargs = {}
-        if timeout_seconds is not None:
-            get_kwargs["timeout"] = timeout_seconds
-
-        try:
-            response = httpx.get(str(config_url), **get_kwargs)
-            response.raise_for_status()
-
-            config_data = response.json()
-            if strict is not None:
-                config_data["strict"] = strict
-
-            return cls.model_validate(config_data)
-        except Exception:
-            logger.exception(
-                f"Unable to get OIDC configuration for config url: {config_url}"
-            )
-            raise
+        pass
 
 
 class OIDCProxy(OAuthProxy):
@@ -434,15 +389,7 @@ class OIDCProxy(OAuthProxy):
         When verify_id_token is enabled, returns the id_token from the
         upstream token response instead of the access_token.
         """
-        if self._verify_id_token:
-            id_token = upstream_token_set.raw_token_data.get("id_token")
-            if id_token is None:
-                logger.warning(
-                    "verify_id_token is enabled but no id_token found in"
-                    " upstream token response"
-                )
-            return id_token
-        return upstream_token_set.access_token
+        pass
 
     def _uses_alternate_verification(self) -> bool:
         """Return True when id_token verification is enabled.
@@ -451,7 +398,7 @@ class OIDCProxy(OAuthProxy):
         result with upstream scopes, even when the IdP issues the same
         JWT for both ``access_token`` and ``id_token``.
         """
-        return self._verify_id_token
+        pass
 
     def get_oidc_configuration(
         self,
@@ -466,9 +413,7 @@ class OIDCProxy(OAuthProxy):
             strict: The strict flag for the configuration
             timeout_seconds: HTTP request timeout in seconds
         """
-        return OIDCConfiguration.get_oidc_configuration(
-            config_url, strict=strict, timeout_seconds=timeout_seconds
-        )
+        pass
 
     def get_token_verifier(
         self,
@@ -486,10 +431,4 @@ class OIDCProxy(OAuthProxy):
             required_scopes: Optional token verifier required_scopes
             timeout_seconds: HTTP request timeout in seconds
         """
-        return JWTVerifier(
-            jwks_uri=str(self.oidc_config.jwks_uri),
-            issuer=str(self.oidc_config.issuer),
-            algorithm=algorithm,
-            audience=audience,
-            required_scopes=required_scopes,
-        )
+        pass

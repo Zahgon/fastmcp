@@ -100,15 +100,7 @@ class _TransformingMCPServerMixin(FastMCPBaseModel):
         or exclude_tags) fall through to the base server types during union
         validation, avoiding unnecessary proxy wrapping.
         """
-        if isinstance(values, dict):
-            has_tools = bool(values.get("tools"))
-            has_include = values.get("include_tags") is not None
-            has_exclude = values.get("exclude_tags") is not None
-            if not (has_tools or has_include or has_exclude):
-                raise ValueError(
-                    "At least one of 'tools', 'include_tags', or 'exclude_tags' is required"
-                )
-        return values
+        pass
 
     def _to_server_and_underlying_transport(
         self,
@@ -289,16 +281,7 @@ class MCPConfig(BaseModel):
     @classmethod
     def wrap_servers_at_root(cls, values: dict[str, Any]) -> dict[str, Any]:
         """If there's no mcpServers key but there are server configs at root, wrap them."""
-        if "mcpServers" not in values:
-            # Check if any values look like server configs
-            has_servers = any(
-                isinstance(v, dict) and ("command" in v or "url" in v)
-                for v in values.values()
-            )
-            if has_servers:
-                # Move all server-like configs under mcpServers
-                return {"mcpServers": values}
-        return values
+        pass
 
     def add_server(self, name: str, server: MCPServerTypes) -> None:
         """Add or update a server in the configuration."""
@@ -311,7 +294,7 @@ class MCPConfig(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         """Convert MCPConfig to dictionary format, preserving all fields."""
-        return self.model_dump(exclude_none=True)
+        pass
 
     def write_to_file(self, file_path: Path) -> None:
         """Write configuration to JSON file."""

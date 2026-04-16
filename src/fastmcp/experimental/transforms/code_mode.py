@@ -45,7 +45,7 @@ def _ensure_async(fn: Callable[..., Any]) -> Callable[..., Any]:
         return fn
 
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
-        return fn(*args, **kwargs)
+        pass
 
     return wrapper
 
@@ -296,24 +296,7 @@ class GetSchemas:
 
             Use after searching to get the detail needed to call a tool.
             """
-            catalog = await get_catalog(ctx)
-            catalog_by_name = {t.name: t for t in catalog}
-            matched = [catalog_by_name[n] for n in tools if n in catalog_by_name]
-            not_found = [n for n in tools if n not in catalog_by_name]
-
-            if not matched and not_found:
-                return f"Tools not found: {', '.join(not_found)}"
-
-            if detail == "full":
-                data = serialize_tools_for_output_json(matched)
-                if not_found:
-                    data.append({"not_found": not_found})
-                return json.dumps(data, indent=2)
-
-            result = _render_tools(matched, detail)
-            if not_found:
-                result += f"\n\nTools not found: {', '.join(not_found)}"
-            return result
+            pass
 
         return Tool.from_function(fn=get_schema, name=self._name)
 
@@ -354,33 +337,7 @@ class GetTags:
 
             Use to browse available tools by tag before searching.
             """
-            catalog = await get_catalog(ctx)
-            by_tag: dict[str, list[Tool]] = {}
-            for tool in catalog:
-                if tool.tags:
-                    for tag in tool.tags:
-                        by_tag.setdefault(tag, []).append(tool)
-                else:
-                    by_tag.setdefault("untagged", []).append(tool)
-
-            if not by_tag:
-                return "No tools available."
-
-            if detail == "brief":
-                lines = [
-                    f"- {tag} ({len(tools)} tool{'s' if len(tools) != 1 else ''})"
-                    for tag, tools in sorted(by_tag.items())
-                ]
-                return "\n".join(lines)
-
-            blocks: list[str] = []
-            for tag, tools in sorted(by_tag.items()):
-                lines = [f"### {tag}"]
-                for tool in tools:
-                    desc = f": {tool.description}" if tool.description else ""
-                    lines.append(f"- {tool.name}{desc}")
-                blocks.append("\n".join(lines))
-            return "\n\n".join(blocks)
+            pass
 
         return Tool.from_function(fn=tags, name=self._name)
 
@@ -431,7 +388,7 @@ class ListTools:
 
 
 def _default_discovery_tools() -> list[DiscoveryToolFactory]:
-    return [Search(), GetSchemas()]
+    pass
 
 
 class CodeMode(CatalogTransform):

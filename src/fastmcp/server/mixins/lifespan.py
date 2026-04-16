@@ -31,7 +31,7 @@ class LifespanMixin:
 
         Returns None if Docket is not enabled or server hasn't been started yet.
         """
-        return self._docket
+        pass
 
     @asynccontextmanager
     async def _docket_lifespan(self: FastMCP) -> AsyncIterator[None]:
@@ -189,57 +189,4 @@ class LifespanMixin:
         Only registers handlers if docket is installed. Without docket,
         task protocol requests will return "method not found" errors.
         """
-        from fastmcp.server.dependencies import is_docket_available
-
-        if not is_docket_available():
-            return
-
-        from mcp.types import (
-            CancelTaskRequest,
-            GetTaskPayloadRequest,
-            GetTaskRequest,
-            ListTasksRequest,
-            ServerResult,
-        )
-
-        from fastmcp.server.tasks.requests import (
-            tasks_cancel_handler,
-            tasks_get_handler,
-            tasks_list_handler,
-            tasks_result_handler,
-        )
-
-        # Manually register handlers (SDK decorators fail with locally-defined functions)
-        # SDK expects handlers that receive Request objects and return ServerResult
-
-        async def handle_get_task(req: GetTaskRequest) -> ServerResult:
-            params = req.params.model_dump(by_alias=True, exclude_none=True)
-            result = await tasks_get_handler(self, params)
-            return ServerResult(result)
-
-        async def handle_get_task_result(req: GetTaskPayloadRequest) -> ServerResult:
-            params = req.params.model_dump(by_alias=True, exclude_none=True)
-            result = await tasks_result_handler(self, params)
-            return ServerResult(result)
-
-        async def handle_list_tasks(req: ListTasksRequest) -> ServerResult:
-            params = (
-                req.params.model_dump(by_alias=True, exclude_none=True)
-                if req.params
-                else {}
-            )
-            result = await tasks_list_handler(self, params)
-            return ServerResult(result)
-
-        async def handle_cancel_task(req: CancelTaskRequest) -> ServerResult:
-            params = req.params.model_dump(by_alias=True, exclude_none=True)
-            result = await tasks_cancel_handler(self, params)
-            return ServerResult(result)
-
-        # Register directly with SDK (same as what decorators do internally)
-        self._mcp_server.request_handlers[GetTaskRequest] = handle_get_task
-        self._mcp_server.request_handlers[GetTaskPayloadRequest] = (
-            handle_get_task_result
-        )
-        self._mcp_server.request_handlers[ListTasksRequest] = handle_list_tasks
-        self._mcp_server.request_handlers[CancelTaskRequest] = handle_cancel_task
+        pass

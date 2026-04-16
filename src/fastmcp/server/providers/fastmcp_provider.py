@@ -548,14 +548,7 @@ class FastMCPProvider(Provider):
 
     async def get_app_tool(self, app_name: str, tool_name: str) -> Tool | None:
         """Delegate to nested server's get_app_tool, wrapping for middleware."""
-        raw_tool = await self.server.get_app_tool(app_name, tool_name)
-        if raw_tool is None:
-            return None
-        wrapped = FastMCPProviderTool.wrap(self.server, raw_tool)
-        from fastmcp.server.providers.addressing import hashed_backend_name
-
-        wrapped._original_name = hashed_backend_name(app_name, tool_name)
-        return wrapped
+        pass
 
     async def get_tool_by_hash(self, tool_hash: str, tool_name: str) -> Tool | None:
         """Delegate to nested server's get_tool_by_hash, wrapping for middleware."""

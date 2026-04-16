@@ -72,14 +72,7 @@ class StdioTransport(ClientTransport):
     async def connect_session(
         self, **session_kwargs: Unpack[SessionKwargs]
     ) -> AsyncIterator[ClientSession]:
-        try:
-            await self.connect(**session_kwargs)
-            yield cast(ClientSession, self._session)
-        finally:
-            if not self.keep_alive:
-                await self.disconnect()
-            else:
-                logger.debug("Stdio transport has keep_alive=True, not disconnecting")
+        pass
 
     async def connect(
         self, **session_kwargs: Unpack[SessionKwargs]
