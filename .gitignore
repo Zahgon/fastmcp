@@ -78,3 +78,6 @@ plans/
 /server.py
 /client.py
 /test.json
+
+.aider*
+logs/
