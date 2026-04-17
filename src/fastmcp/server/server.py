@@ -226,7 +226,7 @@ async def default_lifespan(server: FastMCP[LifespanResultT]) -> AsyncIterator[An
     Returns:
         An empty dictionary as the lifespan result.
     """
-    pass
+    yield {}
 
 
 def _lifespan_proxy(
@@ -235,7 +235,22 @@ def _lifespan_proxy(
     [LowLevelServer[LifespanResultT]], AbstractAsyncContextManager[LifespanResultT]
 ]:
     @asynccontextmanager
-    pass
+    async def wrap(
+        low_level_server: LowLevelServer[LifespanResultT],
+    ) -> AsyncIterator[LifespanResultT]:
+        if fastmcp_server._lifespan is default_lifespan:
+            yield {}  # ty:ignore[invalid-yield]
+            return
+
+        if not fastmcp_server._lifespan_result_set:
+            raise RuntimeError(
+                "FastMCP server has a lifespan defined but no lifespan result is set, which means the server's context manager was not entered. "
+                " Are you running the server in a way that supports lifespans? If so, please file an issue at https://github.com/PrefectHQ/fastmcp/issues."
+            )
+
+        yield fastmcp_server._lifespan_result  # ty:ignore[invalid-yield]
+
+    return wrap
 
 
 class StateValue(FastMCPBaseModel):
